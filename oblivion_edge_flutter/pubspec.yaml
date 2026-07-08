@@ -1,0 +1,37 @@
+name: oblivion_edge_flight
+description: "Oblivion Edge Flight Simulator - Flutter UI with Godot Game Engine"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  provider: ^6.0.0
+
+  # Local storage
+  shared_preferences: ^2.2.0
+
+  # UI/UX
+  google_fonts: ^6.1.0
+
+  # WebView for 3D rendering
+  webview_flutter: ^4.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/data/
+    - assets/flight_sim.html

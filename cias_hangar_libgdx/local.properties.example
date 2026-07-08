@@ -1,0 +1,15 @@
+# This file is used to override local Gradle settings for your Android development environment.
+# Copy this file to local.properties and update with your local paths.
+
+# Android SDK location
+# Linux/Mac example:
+sdk.dir=/home/username/Android/Sdk
+
+# Windows example:
+# sdk.dir=C:\\Users\\username\\AppData\\Local\\Android\\Sdk
+
+# NDK location (optional, if using native code)
+# ndk.dir=/home/username/Android/Ndk
+
+# Java Home (optional)
+# java.home=/usr/lib/jvm/java-11-openjdk

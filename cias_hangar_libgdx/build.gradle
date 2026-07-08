@@ -1,0 +1,34 @@
+buildscript {
+    ext {
+        libgdxVersion = '1.9.13'
+        androidPluginVersion = '7.4.2'
+        androidSDKVersion = 34
+        androidMinSDKVersion = 24
+    }
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        google()
+        gradlePluginPortal()
+    }
+
+    dependencies {
+        classpath "com.android.tools.build:gradle:${androidPluginVersion}"
+    }
+}
+
+allprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        google()
+        jcenter()
+        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+        maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

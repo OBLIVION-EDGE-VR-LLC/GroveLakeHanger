@@ -1,0 +1,33 @@
+# Gradle
+.gradle/
+build/
+*.apk
+*.ap_
+
+# Android
+.android/
+.classpath
+.project
+local.properties
+*.iml
+.idea/
+.DS_Store
+out/
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+
+# Build artifacts
+*.class
+*.jar
+
+# Generated files
+.settings/
+gen/
+bin/
+
+# Debug
+*.log

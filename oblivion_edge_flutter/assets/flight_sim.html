@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oblivion Edge Flight Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Arial', sans-serif;
+        }
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            color: #00CED1;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: monospace;
+            text-shadow: 0 0 10px #00CED1, 0 0 20px #0088aa;
+        }
+        .hud-top-left {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            border: 2px solid #00CED1;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            box-shadow: 0 0 20px rgba(0, 206, 209, 0.3);
+        }
+        .hud-bottom-left {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            border: 2px solid #00CED1;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            box-shadow: 0 0 20px rgba(0, 206, 209, 0.3);
+        }
+        .hud-bottom-right {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            border: 2px solid #00CED1;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            text-align: right;
+            box-shadow: 0 0 20px rgba(0, 206, 209, 0.3);
+        }
+        .hud-center-bottom {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 2px solid #FFD700;
+            padding: 12px 24px;
+            background: rgba(0, 0, 0, 0.8);
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+        .label {
+            color: #00CED1;
+            font-size: 10px;
+            opacity: 0.8;
+        }
+        .value {
+            color: #FFD700;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #FFD700;
+        }
+        .separator {
+            height: 1px;
+            background: #00CED1;
+            margin: 8px 0;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="hud">
+        <div class="hud-top-left">
+            <div class="label">CRAFT</div>
+            <div class="value" id="craft-name">SENTINEL ORB</div>
+            <div class="separator"></div>
+            <div class="label">STATUS</div>
+            <div class="value" id="status">NOMINAL</div>
+        </div>
+        <div class="hud-bottom-left">
+            <div class="label">ALTITUDE</div>
+            <div class="value" id="altitude">0.0m</div>
+            <div class="separator"></div>
+            <div class="label">SPEED</div>
+            <div class="value" id="speed">0.0 m/s</div>
+        </div>
+        <div class="hud-bottom-right">
+            <div class="label">HEALTH</div>
+            <div class="value" id="health">100%</div>
+            <div class="separator"></div>
+            <div class="label">THROTTLE</div>
+            <div class="value" id="throttle">0%</div>
+        </div>
+        <div class="hud-center-bottom">
+            <div class="label">PITCH</div>
+            <div class="value" id="pitch">0.0°</div>
+            &nbsp;&nbsp;&nbsp;
+            <div class="label">ROLL</div>
+            <div class="value" id="roll">0.0°</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ===== ADVANCED FLIGHT SIMULATOR =====
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.0008);
+
+        const canvas = document.getElementById('canvas');
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50000);
+        camera.position.set(0, 3, -12);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFShadowShadowMap;
+        renderer.pixelRatio = window.devicePixelRatio;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        // ===== LIGHTING =====
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(100, 150, 50);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 4096;
+        directionalLight.shadow.mapSize.height = 4096;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 5000;
+        directionalLight.shadow.camera.left = -500;
+        directionalLight.shadow.camera.right = 500;
+        directionalLight.shadow.camera.top = 500;
+        directionalLight.shadow.camera.bottom = -500;
+        directionalLight.shadow.radius = 2;
+        scene.add(directionalLight);
+
+        // Point lights for engine glow
+        const engineLights = [];
+        const engineLightPositions = [
+            [2, 0, 2.5],
+            [-2, 0, 2.5],
+            [0, 0, -2.5],
+        ];
+
+        engineLightPositions.forEach(pos => {
+            const light = new THREE.PointLight(0xFF6B35, 2, 50);
+            light.position.set(...pos);
+            light.castShadow = true;
+            scene.add(light);
+            engineLights.push(light);
+        });
+
+        // ===== STARS =====
+        function createStarfield() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 2000;
+            const positions = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 100000;
+                positions[i + 1] = (Math.random() - 0.5) * 100000;
+                positions[i + 2] = (Math.random() - 0.5) * 100000;
+            }
+
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 50 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+        createStarfield();
+
+        // ===== HIGH-FIDELITY ORB CRAFT =====
+        const craftGroup = new THREE.Group();
+        scene.add(craftGroup);
+
+        // Main sphere body
+        const bodyGeometry = new THREE.IcosahedronGeometry(1.2, 4);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFD700,
+            metalness: 0.9,
+            roughness: 0.1,
+            emissive: 0x664400,
+            emissiveIntensity: 0.2
+        });
+        const mainBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        mainBody.castShadow = true;
+        mainBody.receiveShadow = true;
+        craftGroup.add(mainBody);
+
+        // Rotating ring (geometric detail)
+        const ringGeometry = new THREE.TorusGeometry(1.4, 0.15, 16, 32);
+        const ringMaterial = new THREE.MeshStandardMaterial({
+            color: 0x00CED1,
+            metalness: 0.7,
+            roughness: 0.2,
+            emissive: 0x0088aa,
+            emissiveIntensity: 0.5
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = Math.PI / 4;
+        ring.castShadow = true;
+        ring.receiveShadow = true;
+        craftGroup.add(ring);
+
+        // Engine pods
+        const podGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const podMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFF6B35,
+            metalness: 0.8,
+            roughness: 0.3,
+            emissive: 0xFF6B35,
+            emissiveIntensity: 0.8
+        });
+
+        const podPositions = [
+            [1.5, 0.5, 1.5],
+            [-1.5, 0.5, 1.5],
+            [1.5, -0.5, -1.5],
+            [-1.5, -0.5, -1.5],
+            [0, 1.3, 0],
+            [0, -1.3, 0]
+        ];
+
+        const enginePods = [];
+        podPositions.forEach(pos => {
+            const pod = new THREE.Mesh(podGeometry, podMaterial);
+            pod.position.set(...pos);
+            pod.castShadow = true;
+            pod.receiveShadow = true;
+            craftGroup.add(pod);
+            enginePods.push(pod);
+        });
+
+        // ===== GROUND WITH GRID =====
+        function createGridGround() {
+            const size = 1000;
+            const divisions = 50;
+            const gridHelper = new THREE.GridHelper(size, divisions, 0x00CED1, 0x004488);
+            gridHelper.position.y = -10;
+            gridHelper.material.transparent = true;
+            gridHelper.material.opacity = 0.3;
+            scene.add(gridHelper);
+
+            const groundGeometry = new THREE.PlaneGeometry(size, size);
+            const groundMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1a2e,
+                metalness: 0.1,
+                roughness: 0.9,
+                emissive: 0x0a1628,
+                emissiveIntensity: 0.3
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -10;
+            ground.receiveShadow = true;
+            scene.add(ground);
+        }
+        createGridGround();
+
+        // ===== NEBULA SKY =====
+        const skyGeometry = new THREE.SphereGeometry(30000, 64, 64);
+        const canvas2D = document.createElement('canvas');
+        canvas2D.width = 1024;
+        canvas2D.height = 1024;
+        const ctx = canvas2D.getContext('2d');
+
+        // Create nebula texture
+        const imageData = ctx.createImageData(1024, 1024);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const n = Math.random();
+            data[i] = Math.round(20 + n * 80);       // R
+            data[i + 1] = Math.round(10 + n * 40);   // G
+            data[i + 2] = Math.round(60 + n * 120);  // B
+            data[i + 3] = 255;                         // A
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        const skyTexture = new THREE.CanvasTexture(canvas2D);
+        const skyMaterial = new THREE.MeshBasicMaterial({
+            map: skyTexture,
+            side: THREE.BackSide
+        });
+        const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+        scene.add(sky);
+
+        // ===== PARTICLE EFFECTS =====
+        const particleGroup = new THREE.Group();
+        craftGroup.add(particleGroup);
+
+        function createParticleSystem() {
+            const geometry = new THREE.BufferGeometry();
+            const count = 300;
+            const positions = new Float32Array(count * 3);
+            const velocities = new Float32Array(count * 3);
+
+            for (let i = 0; i < count; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 2;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 2;
+                positions[i * 3 + 2] = Math.random() * 3;
+
+                velocities[i * 3] = (Math.random() - 0.5) * 0.5;
+                velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.5;
+                velocities[i * 3 + 2] = Math.random() * 2 + 1;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.userData.velocities = velocities;
+
+            const material = new THREE.PointsMaterial({
+                color: 0xFF6B35,
+                size: 0.3,
+                transparent: true,
+                opacity: 0.6,
+                sizeAttenuation: true
+            });
+
+            return new THREE.Points(geometry, material);
+        }
+
+        const particles = createParticleSystem();
+        particleGroup.add(particles);
+
+        // ===== FLIGHT PHYSICS =====
+        const flightState = {
+            position: new THREE.Vector3(0, 5, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            acceleration: new THREE.Vector3(0, 0, 0),
+
+            pitch: 0,
+            roll: 0,
+            yaw: 0,
+            pitchRate: 0,
+            rollRate: 0,
+
+            throttle: 0,
+            maxSpeed: 150,
+            maxThrust: 80,
+            dragCoefficient: 0.03,
+            gravity: 9.81,
+
+            health: 100,
+            altitude: 5
+        };
+
+        const controls = {
+            pitchUp: 0,
+            pitchDown: 0,
+            rollLeft: 0,
+            rollRight: 0,
+            throttleUp: 0,
+            throttleDown: 0
+        };
+
+        // ===== INPUT =====
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w': controls.pitchUp = 1; break;
+                case 's': controls.pitchDown = 1; break;
+                case 'a': controls.rollLeft = 1; break;
+                case 'd': controls.rollRight = 1; break;
+                case 'q': controls.throttleUp = 1; break;
+                case 'e': controls.throttleDown = 1; break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w': controls.pitchUp = 0; break;
+                case 's': controls.pitchDown = 0; break;
+                case 'a': controls.rollLeft = 0; break;
+                case 'd': controls.rollRight = 0; break;
+                case 'q': controls.throttleUp = 0; break;
+                case 'e': controls.throttleDown = 0; break;
+            }
+        });
+
+        // Touch controls
+        document.addEventListener('touchstart', () => {
+            controls.throttleUp = 1;
+        });
+
+        document.addEventListener('touchend', () => {
+            controls.throttleUp = 0;
+        });
+
+        // Gyro
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', (e) => {
+                const beta = e.beta || 0;
+                const gamma = e.gamma || 0;
+                flightState.pitchRate = beta * Math.PI / 180 * 0.3;
+                flightState.rollRate = gamma * Math.PI / 180 * 0.3;
+            });
+        }
+
+        // ===== PHYSICS UPDATE =====
+        function updatePhysics(deltaTime) {
+            // Attitude control with smooth rates
+            const pitchAccel = 0.05;
+            const rollAccel = 0.05;
+
+            flightState.pitchRate += (controls.pitchUp - controls.pitchDown) * pitchAccel;
+            flightState.rollRate += (controls.rollLeft - controls.rollRight) * rollAccel;
+
+            flightState.pitchRate *= 0.95; // Damping
+            flightState.rollRate *= 0.95;
+
+            flightState.pitch += flightState.pitchRate;
+            flightState.roll += flightState.rollRate;
+
+            flightState.pitch = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, flightState.pitch));
+            flightState.roll = Math.max(-Math.PI/2, Math.min(Math.PI/2, flightState.roll));
+
+            // Throttle
+            flightState.throttle += (controls.throttleUp - controls.throttleDown) * 0.05;
+            flightState.throttle = Math.max(0, Math.min(1, flightState.throttle));
+
+            // Thrust
+            const thrustMagnitude = flightState.throttle * flightState.maxThrust;
+            flightState.acceleration.x = 0;
+            flightState.acceleration.y = -flightState.gravity;
+            flightState.acceleration.z = Math.cos(flightState.pitch) * thrustMagnitude / 100;
+
+            // Velocity
+            flightState.velocity.addScaledVector(flightState.acceleration, deltaTime);
+
+            // Drag
+            const speed = flightState.velocity.length();
+            if (speed > 0) {
+                const dragForce = speed * speed * flightState.dragCoefficient;
+                flightState.velocity.multiplyScalar(1 - dragForce * deltaTime / speed);
+            }
+
+            // Speed limit
+            if (speed > flightState.maxSpeed) {
+                flightState.velocity.multiplyScalar(flightState.maxSpeed / speed);
+            }
+
+            // Position
+            flightState.position.addScaledVector(flightState.velocity, deltaTime);
+
+            // Ground collision
+            if (flightState.position.y < -9) {
+                flightState.position.y = -9;
+                flightState.velocity.y = Math.max(0, flightState.velocity.y);
+                flightState.health = Math.max(0, flightState.health - 20);
+            }
+
+            flightState.altitude = Math.max(0, flightState.position.y + 9);
+        }
+
+        // ===== ANIMATION LOOP =====
+        let lastTime = Date.now();
+        let rotationAngle = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const currentTime = Date.now();
+            const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.016);
+            lastTime = currentTime;
+
+            updatePhysics(deltaTime);
+
+            // Update craft
+            craftGroup.position.copy(flightState.position);
+            craftGroup.rotation.order = 'YXZ';
+            craftGroup.rotation.x = flightState.pitch;
+            craftGroup.rotation.z = flightState.roll;
+            craftGroup.rotation.y = flightState.yaw;
+
+            // Animate ring
+            rotationAngle += 0.01 * flightState.throttle;
+            ring.rotation.z = rotationAngle;
+
+            // Animate engine pods
+            enginePods.forEach((pod, i) => {
+                pod.scale.set(
+                    0.8 + flightState.throttle * 0.4,
+                    0.8 + flightState.throttle * 0.4,
+                    0.8 + flightState.throttle * 0.4
+                );
+            });
+
+            // Engine lights intensity
+            engineLights.forEach(light => {
+                light.intensity = 1 + flightState.throttle * 3;
+            });
+
+            // Particle update
+            if (particles.geometry.attributes.position) {
+                const positions = particles.geometry.attributes.position.array;
+                const velocities = particles.geometry.userData.velocities;
+
+                for (let i = 0; i < positions.length; i += 3) {
+                    positions[i] += velocities[i] * flightState.throttle * 0.5;
+                    positions[i + 1] += velocities[i + 1] * flightState.throttle * 0.5;
+                    positions[i + 2] += velocities[i + 2] * flightState.throttle;
+
+                    // Reset if too far
+                    if (positions[i + 2] > 5) {
+                        positions[i] = (Math.random() - 0.5) * 2;
+                        positions[i + 1] = (Math.random() - 0.5) * 2;
+                        positions[i + 2] = 0;
+                    }
+                }
+                particles.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // Camera follow
+            const cameraDistance = 12;
+            const cameraHeight = 3;
+            camera.position.x = craftGroup.position.x - Math.sin(flightState.yaw) * cameraDistance * Math.cos(flightState.pitch);
+            camera.position.y = craftGroup.position.y + cameraHeight + Math.sin(flightState.pitch) * cameraDistance;
+            camera.position.z = craftGroup.position.z - Math.cos(flightState.yaw) * cameraDistance * Math.cos(flightState.pitch);
+            camera.lookAt(craftGroup.position.x, craftGroup.position.y + 1, craftGroup.position.z);
+
+            // Update HUD
+            document.getElementById('altitude').textContent = flightState.altitude.toFixed(1) + 'm';
+            document.getElementById('speed').textContent = flightState.velocity.length().toFixed(1) + ' m/s';
+            document.getElementById('health').textContent = Math.max(0, Math.round(flightState.health)) + '%';
+            document.getElementById('throttle').textContent = Math.round(flightState.throttle * 100) + '%';
+            document.getElementById('pitch').textContent = (flightState.pitch * 180 / Math.PI).toFixed(1) + '°';
+            document.getElementById('roll').textContent = (flightState.roll * 180 / Math.PI).toFixed(1) + '°';
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

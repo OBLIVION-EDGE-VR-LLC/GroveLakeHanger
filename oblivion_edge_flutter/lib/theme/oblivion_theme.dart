@@ -78,7 +78,7 @@ class OblivionTheme {
         color: primaryCyan,
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: darkGray,
       elevation: 4,
       shadowColor: primaryCyan.withOpacity(0.3),

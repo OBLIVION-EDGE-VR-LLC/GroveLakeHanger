@@ -2,93 +2,209 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Oblivion Edge Flight Simulator</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            margin: 0;
             overflow: hidden;
             background: #000;
             font-family: 'Arial', sans-serif;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         #canvas {
             display: block;
             width: 100%;
             height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+        }
+        #joystickCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 10;
+            pointer-events: none;
         }
         #hud {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             pointer-events: none;
             color: #00CED1;
             font-size: 12px;
             font-weight: bold;
             font-family: monospace;
             text-shadow: 0 0 10px #00CED1, 0 0 20px #0088aa;
+            z-index: 5;
         }
         .hud-top-left {
             position: absolute;
-            top: 16px;
-            left: 16px;
+            top: 16px; left: 16px;
             border: 2px solid #00CED1;
             padding: 12px;
             background: rgba(0, 0, 0, 0.8);
             box-shadow: 0 0 20px rgba(0, 206, 209, 0.3);
         }
-        .hud-bottom-left {
+        .hud-top-right {
             position: absolute;
-            bottom: 16px;
-            left: 16px;
-            border: 2px solid #00CED1;
-            padding: 12px;
-            background: rgba(0, 0, 0, 0.8);
-            box-shadow: 0 0 20px rgba(0, 206, 209, 0.3);
-        }
-        .hud-bottom-right {
-            position: absolute;
-            bottom: 16px;
-            right: 16px;
+            top: 16px; right: 16px;
             border: 2px solid #00CED1;
             padding: 12px;
             background: rgba(0, 0, 0, 0.8);
             text-align: right;
             box-shadow: 0 0 20px rgba(0, 206, 209, 0.3);
         }
-        .hud-center-bottom {
+        .label { color: #00CED1; font-size: 10px; opacity: 0.8; }
+        .value { color: #FFD700; font-size: 14px; font-weight: bold; text-shadow: 0 0 5px #FFD700; }
+        .separator { height: 1px; background: #00CED1; margin: 8px 0; opacity: 0.3; }
+
+        /* ===== DIALOG OVERLAYS ===== */
+
+        /* Checkpoint pause - full screen overlay */
+        #checkpoint-overlay {
+            display: none;
             position: absolute;
-            bottom: 16px;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 40;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+        }
+        #checkpoint-overlay.active { display: flex; }
+        #checkpoint-panel {
+            max-width: 85%;
+            max-height: 70%;
+            border: 2px solid #00CED1;
+            border-radius: 8px;
+            padding: 24px;
+            background: rgba(10, 15, 30, 0.95);
+            box-shadow: 0 0 40px rgba(0, 206, 209, 0.3);
+        }
+        #checkpoint-character {
+            color: #FFD700;
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            text-shadow: 0 0 5px #FFD700;
+        }
+        #checkpoint-text {
+            color: #ddd;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 60px;
+        }
+        #checkpoint-continue {
+            display: block;
+            margin: 20px auto 0;
+            padding: 12px 48px;
+            background: #00CED1;
+            color: #000;
+            border: none;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: 1px;
+        }
+
+        /* Radio comms - bottom center bar */
+        #radio-overlay {
+            display: none;
+            position: absolute;
+            bottom: 180px;
             left: 50%;
             transform: translateX(-50%);
+            width: 80%;
+            max-width: 500px;
+            z-index: 20;
+            pointer-events: none;
+        }
+        #radio-overlay.active { display: block; }
+        #radio-panel {
+            border: 1px solid #00CED1;
+            border-radius: 4px;
+            padding: 10px 16px;
+            background: rgba(0, 10, 20, 0.9);
+            box-shadow: 0 0 15px rgba(0, 206, 209, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        #radio-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 206, 209, 0.03) 2px,
+                rgba(0, 206, 209, 0.03) 4px
+            );
+            pointer-events: none;
+        }
+        #radio-character {
+            color: #FFD700;
+            font-family: monospace;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        #radio-text {
+            color: #00CED1;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            margin-top: 4px;
+        }
+
+        /* Objective banner - slides from top */
+        #objective-overlay {
+            display: none;
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            z-index: 30;
+            pointer-events: none;
+            transition: top 0.4s ease-out;
+        }
+        #objective-overlay.active { display: block; top: 60px; }
+        #objective-panel {
             border: 2px solid #FFD700;
-            padding: 12px 24px;
-            background: rgba(0, 0, 0, 0.8);
+            border-radius: 4px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.9);
             text-align: center;
             box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
         }
-        .label {
-            color: #00CED1;
-            font-size: 10px;
-            opacity: 0.8;
-        }
-        .value {
+        #objective-label {
             color: #FFD700;
-            font-size: 14px;
+            font-family: monospace;
+            font-size: 10px;
             font-weight: bold;
-            text-shadow: 0 0 5px #FFD700;
+            letter-spacing: 2px;
         }
-        .separator {
-            height: 1px;
-            background: #00CED1;
-            margin: 8px 0;
-            opacity: 0.3;
+        #objective-text {
+            color: #fff;
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: bold;
+            margin-top: 4px;
         }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
+    <canvas id="joystickCanvas"></canvas>
+
     <div id="hud">
         <div class="hud-top-left">
             <div class="label">CRAFT</div>
@@ -97,37 +213,207 @@
             <div class="label">STATUS</div>
             <div class="value" id="status">NOMINAL</div>
         </div>
-        <div class="hud-bottom-left">
-            <div class="label">ALTITUDE</div>
+        <div class="hud-top-right">
+            <div class="label">ALT</div>
             <div class="value" id="altitude">0.0m</div>
             <div class="separator"></div>
-            <div class="label">SPEED</div>
+            <div class="label">SPD</div>
             <div class="value" id="speed">0.0 m/s</div>
-        </div>
-        <div class="hud-bottom-right">
-            <div class="label">HEALTH</div>
+            <div class="separator"></div>
+            <div class="label">HP</div>
             <div class="value" id="health">100%</div>
             <div class="separator"></div>
-            <div class="label">THROTTLE</div>
+            <div class="label">THR</div>
             <div class="value" id="throttle">0%</div>
         </div>
-        <div class="hud-center-bottom">
-            <div class="label">PITCH</div>
-            <div class="value" id="pitch">0.0°</div>
-            &nbsp;&nbsp;&nbsp;
-            <div class="label">ROLL</div>
-            <div class="value" id="roll">0.0°</div>
+    </div>
+
+    <!-- Dialog overlays -->
+    <div id="checkpoint-overlay">
+        <div id="checkpoint-panel">
+            <div id="checkpoint-character"></div>
+            <div id="checkpoint-text"></div>
+            <button id="checkpoint-continue">CONTINUE</button>
+        </div>
+    </div>
+    <div id="radio-overlay">
+        <div id="radio-panel">
+            <div id="radio-character"></div>
+            <div id="radio-text"></div>
+        </div>
+    </div>
+    <div id="objective-overlay">
+        <div id="objective-panel">
+            <div id="objective-label">OBJECTIVE</div>
+            <div id="objective-text"></div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // ===== ADVANCED FLIGHT SIMULATOR =====
+        // ===== MISSION SELECTION =====
+        const urlParams = new URLSearchParams(window.location.search);
+        let missionId = parseInt(urlParams.get('mission')) || 0; // 0 = free flight
 
-        // Scene setup
+        // ===== MISSION SCRIPTS =====
+        const MISSIONS = {
+            1: {
+                name: 'First Wings',
+                craft: 'sentinel_orb',
+                waypoints: [],
+                checkpoints: [
+                    { trigger: 'start', character: 'CONTROL', text: "Welcome to Grove Lake, pilot. I'm your handler — call me Control. Beautiful day for a first flight. Let's see what you've got.", type: 'pause' },
+                    { trigger: 'start_after', text: 'Reach altitude 100m', type: 'objective' },
+                    { trigger: 'altitude>30', character: 'CONTROL', text: "Good climb. Feel that? That's freedom. Not many people get to see the world from up here.", type: 'radio' },
+                    { trigger: 'altitude>100', character: 'CONTROL', text: "Perfect. Now hold steady — feel the wind, feel the craft respond. You and this machine are one.", type: 'radio' },
+                    { trigger: 'altitude>100', text: 'Descend to 20m and hover for 5 seconds', type: 'objective' },
+                    { trigger: 'time>30', character: 'CONTROL', text: "The Sentinel program started in '58 — Lockheed's Skunk Works couldn't figure out why the sphere kept outperforming conventional airframes in wind tunnel tests. Turns out, when you engineer a metamaterial skin with variable dielectric properties, drag becomes... optional.", type: 'radio' },
+                    { trigger: 'time>50', character: 'CONTROL', text: "The hull is a nickel-titanium shape-memory alloy — it deforms under stress and reforms perfectly. No rivets, no seams, no radar return. The Air Force wanted wings. The physics wanted a sphere.", type: 'radio' },
+                    { trigger: 'hover_complete', character: 'CONTROL', text: "Not bad for a first run. You've got instincts, kid. Report back tomorrow — we've got more to show you.", type: 'pause' },
+                ],
+                objectives: {
+                    reachAltitude100: false,
+                    hoverAt20: false,
+                },
+            },
+            2: {
+                name: 'Canyon Run',
+                craft: 'manta_ray',
+                waypoints: [
+                    { id: 'alpha', position: [200, 5, 300], color: 0x00CED1 },
+                    { id: 'bravo', position: [-150, 15, 600], color: 0x00CED1 },
+                    { id: 'charlie', position: [100, 25, 900], color: 0x00CED1 },
+                ],
+                checkpoints: [
+                    { trigger: 'start', character: 'CONTROL', text: "You're flying the XR-7 Manta. Northrop started the blended wing body concept in the '40s with the YB-49 — but this? This is something else. The skin is a ceramic matrix composite — silicon carbide fibers in a borosilicate glass matrix. Manufactured in microgravity aboard a classified orbital platform. You can't forge this material on Earth — the crystal structure only forms in freefall.", type: 'pause' },
+                    { trigger: 'start', character: 'CONTROL', text: "Morning, pilot. Today we push harder. See those waypoints on your HUD? Follow them through the valley. Precision matters — sloppy flying gets people killed.", type: 'pause' },
+                    { trigger: 'start_after', text: 'Navigate to waypoint ALPHA', type: 'objective' },
+                    { trigger: 'waypoint_alpha', character: 'CONTROL', text: "Waypoint ALPHA confirmed. Smooth. Keep that heading.", type: 'radio' },
+                    { trigger: 'waypoint_alpha', text: 'Navigate to waypoint BRAVO', type: 'objective' },
+                    { trigger: 'waypoint_bravo', character: 'CONTROL', text: "BRAVO marked. You're a natural. Command is watching, by the way — don't let that rattle you.", type: 'radio' },
+                    { trigger: 'waypoint_bravo', text: 'Reach waypoint CHARLIE at speed > 30 m/s', type: 'objective' },
+                    { trigger: 'waypoint_charlie', character: 'CONTROL', text: "CHARLIE. Fast and clean. I'm impressed.", type: 'radio' },
+                    { trigger: 'time>45', character: 'CONTROL', text: "Notice how the plasma actuators adjust? No flaps, no ailerons. The air itself bends around you. IR suppression through micro-channel exhaust mixing keeps you invisible to thermal imaging.", type: 'radio' },
+                    { trigger: 'waypoint_charlie', character: 'CONTROL', text: "Outstanding run. Listen... there's something I need to talk to you about. Not here though. Tomorrow, same time. And pilot? Don't mention this to anyone.", type: 'pause' },
+                ],
+                objectives: {
+                    waypointAlpha: false,
+                    waypointBravo: false,
+                    waypointCharlie: false,
+                },
+            },
+            3: {
+                name: 'The Recruitment',
+                craft: 'phantom_lozenge',
+                nightMode: true,
+                waypoints: [
+                    { id: 'beacon', position: [0, 5, 800], color: 0xFFD700 },
+                    { id: 'home', position: [0, 5, 0], color: 0x00FF00 },
+                ],
+                checkpoints: [
+                    { trigger: 'start', character: 'CONTROL', text: "This is off the books. No flight plan, no radio log. Just you and me. There's a beacon 2 klicks north — classified. I need you to fly there and back. Questions later.", type: 'pause' },
+                    { trigger: 'start_after', text: 'Fly to CLASSIFIED BEACON (stay below 100m)', type: 'objective' },
+                    { trigger: 'altitude>80', character: 'CONTROL', text: "Stay below radar ceiling. Keep it under 100m from here on.", type: 'radio' },
+                    { trigger: 'time>20', character: 'CONTROL', text: "What you're about to fly doesn't have a designation. Not officially. The program that built it was so classified that the engineers who designed it thought they were working on three separate projects.", type: 'radio' },
+                    { trigger: 'time>35', character: 'CONTROL', text: "Hull is a bismuth-magnesium layered composite — 26 alternating layers, each thinner than a human hair. The layered structure creates a waveguide effect — electromagnetic energy doesn't bounce off, it gets trapped between layers and re-emitted out the opposite side.", type: 'radio' },
+                    { trigger: 'time>50', character: 'CONTROL', text: "Propulsion is... look, I don't fully understand it myself. There's no combustion. No propellant. The underside generates a localized field gradient — the craft doesn't fly through the air, it moves the air out of its way. That's above your clearance. Just fly the thing.", type: 'radio' },
+                    { trigger: 'waypoint_beacon', character: 'CONTROL', text: "You see it? That facility down there — it doesn't exist. Not on any map. Remember that.", type: 'radio' },
+                    { trigger: 'waypoint_beacon', character: 'CONTROL', text: "What you're looking at is bigger than anything you've been told. Your country needs pilots who don't ask questions... but also pilots smart enough to know when to start asking. Which are you?", type: 'pause' },
+                    { trigger: 'waypoint_beacon', text: 'Return to Grove Lake airstrip', type: 'objective' },
+                    { trigger: 'waypoint_home', character: 'CONTROL', text: "Welcome to the program, pilot. From here on, everything changes. Get some rest — you'll need it. Area 51 awaits.", type: 'pause' },
+                ],
+                objectives: {
+                    reachBeacon: false,
+                    returnHome: false,
+                },
+            },
+            4: {
+                name: 'Ceiling Test',
+                craft: 'vortex_fighter',
+                waypoints: [
+                    { id: 'ceiling_1', position: [0, 200, 300], color: 0x00CED1 },
+                    { id: 'ceiling_2', position: [100, 400, 600], color: 0xFFD700 },
+                    { id: 'ceiling_3', position: [-50, 600, 200], color: 0xFF4400 },
+                ],
+                checkpoints: [
+                    { trigger: 'start', character: 'CONTROL', text: "This is the Vortex. Northrop's classified delta platform — officially, it doesn't exist. The hull is a continuous titanium-aluminium lattice grown in a vacuum chamber. No joints, no fasteners, no weak points. At Mach 2, conventional airframes flex and fatigue. This thing gets stronger.", type: 'pause' },
+                    { trigger: 'start', character: 'CONTROL', text: "Today we find this bird's ceiling. Take her up — 200 meters first, then we push. If the altimeter starts flickering, that's normal. If the hull starts singing... back off.", type: 'pause' },
+                    { trigger: 'start_after', text: 'Climb to waypoint CEILING-1 (200m)', type: 'objective' },
+                    { trigger: 'altitude>100', character: 'CONTROL', text: "Looking good. The Vortex's delta geometry generates lift across the entire planform — no wing loading problem here. She wants to climb.", type: 'radio' },
+                    { trigger: 'waypoint_ceiling_1', character: 'CONTROL', text: "200 meters. First gate passed. The air's thinner up here — conventional engines would be gasping. The Vortex runs on a closed-cycle MHD system — magnetohydrodynamic. It ionizes the intake air and accelerates it electromagnetically. No moving parts in the propulsion system.", type: 'radio' },
+                    { trigger: 'waypoint_ceiling_1', text: 'Push to waypoint CEILING-2 (400m)', type: 'objective' },
+                    { trigger: 'altitude>300', character: 'CONTROL', text: "You're above commercial flight ceiling now. In the real world, only the U-2 and SR-71 operated up here routinely. Kelly Johnson designed the SR-71 with titanium from the Soviet Union — the CIA set up fake companies to buy it. The Soviets literally supplied the material for the plane that spied on them.", type: 'radio' },
+                    { trigger: 'waypoint_ceiling_2', character: 'CONTROL', text: "400 meters. Outstanding. Hull temperature is nominal — the lattice structure distributes thermal load across the entire surface. No hot spots.", type: 'radio' },
+                    { trigger: 'waypoint_ceiling_2', text: 'Maximum altitude — reach CEILING-3 (600m)', type: 'objective' },
+                    { trigger: 'altitude>500', character: 'CONTROL', text: "Above 500. You're in rarefied air, pilot. The X-15 pilots who pushed past 50 miles earned astronaut wings. You're not there yet — but you're flying something they couldn't have imagined.", type: 'radio' },
+                    { trigger: 'waypoint_ceiling_3', character: 'CONTROL', text: "That's the ceiling. Incredible. Six hundred meters in a craft that weighs less than a pickup truck. You just proved the Vortex platform is viable for high-altitude ISR. Command is going to want to see these numbers.", type: 'pause' },
+                    { trigger: 'waypoint_ceiling_3', character: 'CONTROL', text: "Bring her home, pilot. And... listen. What you did today matters. There's a program — bigger than Grove Lake, bigger than anything you've seen. I think you're ready. We'll talk tomorrow.", type: 'pause' },
+                ],
+                objectives: {
+                    ceiling1: false,
+                    ceiling2: false,
+                    ceiling3: false,
+                },
+            },
+            5: {
+                name: 'The Oblivion Protocol',
+                craft: 'titan_carrier',
+                nightMode: true,
+                waypoints: [
+                    { id: 'perimeter_1', position: [300, 30, 300], color: 0xFF0000 },
+                    { id: 'perimeter_2', position: [-300, 30, 400], color: 0xFF0000 },
+                    { id: 'perimeter_3', position: [-200, 30, -300], color: 0xFF0000 },
+                    { id: 'control_tower', position: [0, 50, 500], color: 0xFFD700 },
+                    { id: 'home_final', position: [0, 10, 0], color: 0x00FF00 },
+                ],
+                checkpoints: [
+                    { trigger: 'start', character: 'CONTROL', text: "This is it, pilot. The Oblivion Protocol. What I'm about to tell you is classified above Top Secret — SAP level. Acknowledge.", type: 'pause' },
+                    { trigger: 'start', character: 'CONTROL', text: "You're flying the Titan. The largest craft in the program — 40-foot diameter disc, ceramic-metallic composite hull with integrated phased-array radar. The shield generator isn't science fiction — it's a high-voltage plasma membrane that deflects radar and reduces drag by 60%. We've been testing this technology since 1958.", type: 'pause' },
+                    { trigger: 'start', character: 'CONTROL', text: "Your mission: patrol the perimeter of a facility that does not exist. Three waypoints, then the control tower. You will see things tonight that you cannot discuss. Ever. Not with family, not with friends, not with God. Clear?", type: 'pause' },
+                    { trigger: 'start_after', text: 'Patrol to PERIMETER-1', type: 'objective' },
+                    { trigger: 'altitude>20', character: 'CONTROL', text: "The Titan handles different from anything you've flown. She's heavy — 3,600 pounds — but the field propulsion compensates. Think of her as an aircraft carrier that flies. Slow, deliberate, unstoppable.", type: 'radio' },
+                    { trigger: 'time>30', character: 'CONTROL', text: "I've been running this program for 22 years. Pilots come and go. Most wash out. Some get reassigned. A few... well. You don't need to know about that. Point is — you're still here. That means something.", type: 'radio' },
+                    { trigger: 'waypoint_perimeter_1', character: 'CONTROL', text: "Perimeter 1 clear. Radar shows no intrusion. The facility's TSCM suite — Technical Surveillance Counter-Measures — would detect a mosquito at 5 miles. But we still fly the perimeter. Old habits.", type: 'radio' },
+                    { trigger: 'waypoint_perimeter_1', text: 'Continue to PERIMETER-2', type: 'objective' },
+                    { trigger: 'time>60', character: 'CONTROL', text: "You know what's funny? The public thinks Area 51 is about aliens. Little green men. The truth is so much more interesting. Humans built things that look like they shouldn't exist — because we refused to accept 'impossible' as an answer. Every craft you've flown this week was designed by someone who was told 'that can't work.'", type: 'radio' },
+                    { trigger: 'waypoint_perimeter_2', character: 'CONTROL', text: "Perimeter 2 clear. You're doing well. Steady hands.", type: 'radio' },
+                    { trigger: 'waypoint_perimeter_2', text: 'Continue to PERIMETER-3', type: 'objective' },
+                    { trigger: 'waypoint_perimeter_3', character: 'CONTROL', text: "All perimeter points clear. Now — the control tower. This is the heart of it. Fly close, let the sensors get a reading on the Titan's signature. They need calibration data.", type: 'radio' },
+                    { trigger: 'waypoint_perimeter_3', text: 'Approach CONTROL TOWER for sensor calibration', type: 'objective' },
+                    { trigger: 'waypoint_control_tower', character: 'CONTROL', text: "Sensor calibration complete. Beautiful signature — the plasma membrane is working perfectly. Radar cross-section of a hummingbird on a 40-foot disc. The engineers are going to be pleased.", type: 'pause' },
+                    { trigger: 'waypoint_control_tower', character: 'CONTROL', text: "One more thing before you head home. I wasn't always 'Control.' I had a name, a rank, a life outside these fences. I gave all that up because I believed in what we're building here. Not weapons — tools. Tools for a species that's about to step off its home planet and into the unknown.", type: 'pause' },
+                    { trigger: 'waypoint_control_tower', text: 'Return to Grove Lake for final debrief', type: 'objective' },
+                    { trigger: 'time>120', character: 'CONTROL', text: "The stars look different from up here, don't they? Closer. Like you could reach out and touch them. That's not poetry, pilot — that's engineering. And you're part of it now.", type: 'radio' },
+                    { trigger: 'waypoint_home_final', character: 'CONTROL', text: "Welcome home, pilot. You've completed the Oblivion Protocol. Effective immediately, you're cleared for Area 51 operations. Pack light — you ship out at dawn.", type: 'pause' },
+                    { trigger: 'waypoint_home_final', character: 'CONTROL', text: "And pilot? Whatever happens next... remember Grove Lake. Remember the first time you flew. Remember why you started. That's the part worth keeping.", type: 'pause' },
+                    { trigger: 'waypoint_home_final', character: 'CONTROL', text: "This is Control, signing off Grove Lake frequency. It's been an honor. See you on the other side.", type: 'pause' },
+                ],
+                objectives: {
+                    perimeter1: false,
+                    perimeter2: false,
+                    perimeter3: false,
+                    controlTower: false,
+                    homeFinal: false,
+                },
+            },
+        };
+
+        let activeMission = MISSIONS[missionId] || null;
+
+        // startMission is defined later, after all dependencies exist
+        window.startMission = null; // placeholder
+
+        // ===== SCENE SETUP =====
+        const isNight = activeMission && activeMission.nightMode;
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.0008);
+
+        if (isNight) {
+            scene.background = new THREE.Color(0x0a0a1a);
+            scene.fog = new THREE.FogExp2(0x0a0a1a, 0.0008);
+        } else {
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.FogExp2(0xC8B89A, 0.0006);
+        }
 
         const canvas = document.getElementById('canvas');
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50000);
@@ -137,247 +423,907 @@
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFShadowShadowMap;
         renderer.pixelRatio = window.devicePixelRatio;
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         // ===== LIGHTING =====
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        const nightDim = isNight ? 0.5 : 1.0;
+        const ambientLight = new THREE.AmbientLight(isNight ? 0x334466 : 0xFFF5E0, 0.5 * nightDim);
         scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const directionalLight = new THREE.DirectionalLight(isNight ? 0x8888CC : 0xFFF0D0, 0.9 * nightDim);
         directionalLight.position.set(100, 150, 50);
         directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 4096;
-        directionalLight.shadow.mapSize.height = 4096;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
         directionalLight.shadow.camera.near = 0.5;
         directionalLight.shadow.camera.far = 5000;
         directionalLight.shadow.camera.left = -500;
         directionalLight.shadow.camera.right = 500;
         directionalLight.shadow.camera.top = 500;
         directionalLight.shadow.camera.bottom = -500;
-        directionalLight.shadow.radius = 2;
         scene.add(directionalLight);
 
-        // Point lights for engine glow
-        const engineLights = [];
-        const engineLightPositions = [
-            [2, 0, 2.5],
-            [-2, 0, 2.5],
-            [0, 0, -2.5],
-        ];
-
-        engineLightPositions.forEach(pos => {
-            const light = new THREE.PointLight(0xFF6B35, 2, 50);
-            light.position.set(...pos);
-            light.castShadow = true;
-            scene.add(light);
-            engineLights.push(light);
-        });
-
-        // ===== STARS =====
+        // ===== STARS (night mode only) =====
         function createStarfield() {
+            if (!isNight) return;
             const starGeometry = new THREE.BufferGeometry();
-            const starCount = 2000;
+            const starCount = 3000;
             const positions = new Float32Array(starCount * 3);
-
             for (let i = 0; i < starCount * 3; i += 3) {
                 positions[i] = (Math.random() - 0.5) * 100000;
-                positions[i + 1] = (Math.random() - 0.5) * 100000;
+                positions[i + 1] = Math.abs((Math.random() - 0.5) * 100000); // only above horizon
                 positions[i + 2] = (Math.random() - 0.5) * 100000;
             }
-
             starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 50 });
-            const stars = new THREE.Points(starGeometry, starMaterial);
-            scene.add(stars);
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 40 });
+            scene.add(new THREE.Points(starGeometry, starMaterial));
         }
         createStarfield();
 
-        // ===== HIGH-FIDELITY ORB CRAFT =====
+        // ===== CRAFT CREATION FUNCTIONS =====
         const craftGroup = new THREE.Group();
         scene.add(craftGroup);
+        let craftAnimatables = { ring: null, enginePods: [], engineLights: [], particles: null, underglow: null };
 
-        // Main sphere body
-        const bodyGeometry = new THREE.IcosahedronGeometry(1.2, 4);
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFD700,
-            metalness: 0.9,
-            roughness: 0.1,
-            emissive: 0x664400,
-            emissiveIntensity: 0.2
-        });
-        const mainBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        mainBody.castShadow = true;
-        mainBody.receiveShadow = true;
-        craftGroup.add(mainBody);
+        function clearCraft() {
+            while (craftGroup.children.length > 0) {
+                craftGroup.remove(craftGroup.children[0]);
+            }
+            craftAnimatables = { ring: null, enginePods: [], engineLights: [], particles: null, underglow: null };
+        }
 
-        // Rotating ring (geometric detail)
-        const ringGeometry = new THREE.TorusGeometry(1.4, 0.15, 16, 32);
-        const ringMaterial = new THREE.MeshStandardMaterial({
-            color: 0x00CED1,
-            metalness: 0.7,
-            roughness: 0.2,
-            emissive: 0x0088aa,
-            emissiveIntensity: 0.5
-        });
-        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        ring.rotation.x = Math.PI / 4;
-        ring.castShadow = true;
-        ring.receiveShadow = true;
-        craftGroup.add(ring);
+        function createCraft_sentinel_orb() {
+            clearCraft();
+            // Main sphere body
+            const body = new THREE.Mesh(
+                new THREE.IcosahedronGeometry(1.2, 4),
+                new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.9, roughness: 0.1, emissive: 0x664400, emissiveIntensity: 0.2 })
+            );
+            body.castShadow = true;
+            craftGroup.add(body);
 
-        // Engine pods
-        const podGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-        const podMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFF6B35,
-            metalness: 0.8,
-            roughness: 0.3,
-            emissive: 0xFF6B35,
-            emissiveIntensity: 0.8
-        });
+            // Rotating ring
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(1.4, 0.15, 16, 32),
+                new THREE.MeshStandardMaterial({ color: 0x00CED1, metalness: 0.7, roughness: 0.2, emissive: 0x0088aa, emissiveIntensity: 0.5 })
+            );
+            ring.rotation.x = Math.PI / 4;
+            ring.castShadow = true;
+            craftGroup.add(ring);
+            craftAnimatables.ring = ring;
 
-        const podPositions = [
-            [1.5, 0.5, 1.5],
-            [-1.5, 0.5, 1.5],
-            [1.5, -0.5, -1.5],
-            [-1.5, -0.5, -1.5],
-            [0, 1.3, 0],
-            [0, -1.3, 0]
-        ];
-
-        const enginePods = [];
-        podPositions.forEach(pos => {
-            const pod = new THREE.Mesh(podGeometry, podMaterial);
-            pod.position.set(...pos);
-            pod.castShadow = true;
-            pod.receiveShadow = true;
-            craftGroup.add(pod);
-            enginePods.push(pod);
-        });
-
-        // ===== GROUND WITH GRID =====
-        function createGridGround() {
-            const size = 1000;
-            const divisions = 50;
-            const gridHelper = new THREE.GridHelper(size, divisions, 0x00CED1, 0x004488);
-            gridHelper.position.y = -10;
-            gridHelper.material.transparent = true;
-            gridHelper.material.opacity = 0.3;
-            scene.add(gridHelper);
-
-            const groundGeometry = new THREE.PlaneGeometry(size, size);
-            const groundMaterial = new THREE.MeshStandardMaterial({
-                color: 0x1a1a2e,
-                metalness: 0.1,
-                roughness: 0.9,
-                emissive: 0x0a1628,
-                emissiveIntensity: 0.3
+            // Engine pods
+            const podGeo = new THREE.SphereGeometry(0.3, 16, 16);
+            const podMat = new THREE.MeshStandardMaterial({ color: 0xFF6B35, metalness: 0.8, roughness: 0.3, emissive: 0xFF6B35, emissiveIntensity: 0.8 });
+            [[1.5,0.5,1.5],[-1.5,0.5,1.5],[1.5,-0.5,-1.5],[-1.5,-0.5,-1.5],[0,1.3,0],[0,-1.3,0]].forEach(pos => {
+                const pod = new THREE.Mesh(podGeo, podMat);
+                pod.position.set(...pos);
+                pod.castShadow = true;
+                craftGroup.add(pod);
+                craftAnimatables.enginePods.push(pod);
             });
-            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-            ground.rotation.x = -Math.PI / 2;
-            ground.position.y = -10;
-            ground.receiveShadow = true;
-            scene.add(ground);
+
+            // Engine lights
+            [[2,0,2.5],[-2,0,2.5],[0,0,-2.5]].forEach(pos => {
+                const light = new THREE.PointLight(0xFF6B35, 2, 50);
+                light.position.set(...pos);
+                scene.add(light);
+                craftAnimatables.engineLights.push(light);
+            });
+
+            // Particles
+            const particleGroup = new THREE.Group();
+            craftGroup.add(particleGroup);
+            const pGeo = new THREE.BufferGeometry();
+            const pCount = 300;
+            const pPositions = new Float32Array(pCount * 3);
+            const pVelocities = new Float32Array(pCount * 3);
+            for (let i = 0; i < pCount; i++) {
+                pPositions[i*3] = (Math.random()-0.5)*2;
+                pPositions[i*3+1] = (Math.random()-0.5)*2;
+                pPositions[i*3+2] = Math.random()*3;
+                pVelocities[i*3] = (Math.random()-0.5)*0.5;
+                pVelocities[i*3+1] = (Math.random()-0.5)*0.5;
+                pVelocities[i*3+2] = Math.random()*2+1;
+            }
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+            pGeo.userData.velocities = pVelocities;
+            const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xFF6B35, size: 0.3, transparent: true, opacity: 0.6, sizeAttenuation: true }));
+            particleGroup.add(particles);
+            craftAnimatables.particles = particles;
+
+            document.getElementById('craft-name').textContent = 'SENTINEL ORB';
         }
-        createGridGround();
 
-        // ===== NEBULA SKY =====
-        const skyGeometry = new THREE.SphereGeometry(30000, 64, 64);
-        const canvas2D = document.createElement('canvas');
-        canvas2D.width = 1024;
-        canvas2D.height = 1024;
-        const ctx = canvas2D.getContext('2d');
+        function createCraft_manta_ray() {
+            clearCraft();
 
-        // Create nebula texture
-        const imageData = ctx.createImageData(1024, 1024);
-        const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-            const n = Math.random();
-            data[i] = Math.round(20 + n * 80);       // R
-            data[i + 1] = Math.round(10 + n * 40);   // G
-            data[i + 2] = Math.round(60 + n * 120);  // B
-            data[i + 3] = 255;                         // A
+            // Blended wing body shape
+            const wingShape = new THREE.Shape();
+            wingShape.moveTo(0, 0);        // nose
+            wingShape.lineTo(3, -1.5);     // right wing tip
+            wingShape.quadraticCurveTo(3.2, -1.2, 3, -0.8);
+            wingShape.lineTo(1.5, -0.3);   // right trailing edge
+            wingShape.lineTo(0.8, -0.5);   // right rear
+            wingShape.lineTo(0, -0.8);     // center rear
+            wingShape.lineTo(-0.8, -0.5);  // left rear
+            wingShape.lineTo(-1.5, -0.3);  // left trailing edge
+            wingShape.lineTo(-3, -0.8);
+            wingShape.quadraticCurveTo(-3.2, -1.2, -3, -1.5);
+            wingShape.lineTo(0, 0);        // back to nose
+
+            const extrudeSettings = { depth: 0.4, bevelEnabled: true, bevelThickness: 0.15, bevelSize: 0.1, bevelSegments: 3 };
+            const bodyGeo = new THREE.ExtrudeGeometry(wingShape, extrudeSettings);
+            bodyGeo.rotateX(Math.PI / 2);
+            bodyGeo.translate(0, 0, 0.5);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2C3E50, metalness: 0.85, roughness: 0.15, emissive: 0x0a1520, emissiveIntensity: 0.3 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            craftGroup.add(body);
+
+            // Cyan edge lighting strips
+            const edgeMat = new THREE.MeshStandardMaterial({ color: 0x00CED1, emissive: 0x00CED1, emissiveIntensity: 0.8, metalness: 0.5, roughness: 0.3 });
+            [[-2.5, 0, -0.5], [2.5, 0, -0.5]].forEach(pos => {
+                const strip = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 0.05), edgeMat);
+                strip.position.set(...pos);
+                craftGroup.add(strip);
+            });
+
+            // Vertical stabilizer fins
+            const finMat = new THREE.MeshStandardMaterial({ color: 0x2C3E50, metalness: 0.8, roughness: 0.2 });
+            [[-0.6, 0.3, -0.7], [0.6, 0.3, -0.7]].forEach(pos => {
+                const fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.3), finMat);
+                fin.position.set(...pos);
+                craftGroup.add(fin);
+            });
+
+            // Recessed engine glows (flat discs, not spheres)
+            const engineMat = new THREE.MeshStandardMaterial({ color: 0xFF6B35, emissive: 0xFF6B35, emissiveIntensity: 1.0 });
+            [[-0.8, -0.15, -0.6], [0.8, -0.15, -0.6]].forEach(pos => {
+                const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 16), engineMat);
+                disc.rotation.x = Math.PI / 2;
+                disc.position.set(...pos);
+                craftGroup.add(disc);
+                craftAnimatables.enginePods.push(disc);
+            });
+
+            // Engine lights
+            [[-0.8, -0.2, -0.8], [0.8, -0.2, -0.8]].forEach(pos => {
+                const light = new THREE.PointLight(0xFF6B35, 2, 40);
+                light.position.set(...pos);
+                scene.add(light);
+                craftAnimatables.engineLights.push(light);
+            });
+
+            // Particles (rear exhaust)
+            const particleGroup = new THREE.Group();
+            craftGroup.add(particleGroup);
+            const pGeo = new THREE.BufferGeometry();
+            const pCount = 200;
+            const pPos = new Float32Array(pCount * 3);
+            const pVel = new Float32Array(pCount * 3);
+            for (let i = 0; i < pCount; i++) {
+                pPos[i*3] = (Math.random()-0.5)*1.5;
+                pPos[i*3+1] = (Math.random()-0.5)*0.3 - 0.15;
+                pPos[i*3+2] = -0.6 + Math.random()*2;
+                pVel[i*3] = (Math.random()-0.5)*0.3;
+                pVel[i*3+1] = (Math.random()-0.5)*0.2;
+                pVel[i*3+2] = -(Math.random()*2+1);
+            }
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+            pGeo.userData.velocities = pVel;
+            const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xFF6B35, size: 0.2, transparent: true, opacity: 0.5, sizeAttenuation: true }));
+            particleGroup.add(particles);
+            craftAnimatables.particles = particles;
+
+            document.getElementById('craft-name').textContent = 'XR-7 MANTA';
         }
-        ctx.putImageData(imageData, 0, 0);
 
-        const skyTexture = new THREE.CanvasTexture(canvas2D);
-        const skyMaterial = new THREE.MeshBasicMaterial({
-            map: skyTexture,
-            side: THREE.BackSide
-        });
-        const sky = new THREE.Mesh(skyGeometry, skyMaterial);
-        scene.add(sky);
+        function createCraft_phantom_lozenge() {
+            clearCraft();
 
-        // ===== PARTICLE EFFECTS =====
-        const particleGroup = new THREE.Group();
-        craftGroup.add(particleGroup);
+            // Capsule body (pill shape, elongated 3:1) — built from cylinder + sphere caps for r128 compat
+            const capsuleMat = new THREE.MeshStandardMaterial({ color: 0xE8E8E8, metalness: 0.95, roughness: 0.05, emissive: 0x222222, emissiveIntensity: 0.1 });
+            const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 2.4, 32, 1, true), capsuleMat);
+            cylinder.rotation.z = Math.PI / 2;
+            cylinder.castShadow = true;
+            craftGroup.add(cylinder);
+            const capLeft = new THREE.Mesh(new THREE.SphereGeometry(0.6, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), capsuleMat);
+            capLeft.rotation.z = Math.PI / 2;
+            capLeft.position.x = -1.2;
+            craftGroup.add(capLeft);
+            const capRight = new THREE.Mesh(new THREE.SphereGeometry(0.6, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), capsuleMat);
+            capRight.rotation.z = -Math.PI / 2;
+            capRight.position.x = 1.2;
+            craftGroup.add(capRight);
 
-        function createParticleSystem() {
-            const geometry = new THREE.BufferGeometry();
-            const count = 300;
-            const positions = new Float32Array(count * 3);
-            const velocities = new Float32Array(count * 3);
+            // Gold equatorial ring
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(0.65, 0.04, 16, 48),
+                new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.9, roughness: 0.1, emissive: 0x664400, emissiveIntensity: 0.5 })
+            );
+            ring.rotation.y = Math.PI / 2;
+            craftGroup.add(ring);
+            craftAnimatables.ring = ring;
 
-            for (let i = 0; i < count; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 2;
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 2;
-                positions[i * 3 + 2] = Math.random() * 3;
+            // Forward antenna spike
+            const spike = new THREE.Mesh(
+                new THREE.ConeGeometry(0.08, 0.6, 8),
+                new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.9, roughness: 0.1 })
+            );
+            spike.rotation.z = -Math.PI / 2;
+            spike.position.set(1.8, 0, 0);
+            craftGroup.add(spike);
 
-                velocities[i * 3] = (Math.random() - 0.5) * 0.5;
-                velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.5;
-                velocities[i * 3 + 2] = Math.random() * 2 + 1;
+            // Blue underglow (area light effect via multiple point lights)
+            const underglowColor = 0x4488FF;
+            [[-0.5, -0.7, 0], [0, -0.7, 0], [0.5, -0.7, 0]].forEach(pos => {
+                const light = new THREE.PointLight(underglowColor, 1.5, 30);
+                light.position.set(...pos);
+                scene.add(light);
+                craftAnimatables.engineLights.push(light);
+            });
+
+            // Store underglow reference for pulsing
+            craftAnimatables.underglow = true;
+
+            // No visible particles — propulsion is "field-based"
+            // But add a subtle shimmer effect
+            const shimmerGeo = new THREE.BufferGeometry();
+            const sCount = 50;
+            const sPos = new Float32Array(sCount * 3);
+            const sVel = new Float32Array(sCount * 3);
+            for (let i = 0; i < sCount; i++) {
+                sPos[i*3] = (Math.random()-0.5)*2;
+                sPos[i*3+1] = -0.5 - Math.random()*0.5;
+                sPos[i*3+2] = (Math.random()-0.5)*1;
+                sVel[i*3] = (Math.random()-0.5)*0.2;
+                sVel[i*3+1] = -(Math.random()*0.5+0.3);
+                sVel[i*3+2] = (Math.random()-0.5)*0.2;
+            }
+            shimmerGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+            shimmerGeo.userData.velocities = sVel;
+            const shimmer = new THREE.Points(shimmerGeo, new THREE.PointsMaterial({ color: 0x4488FF, size: 0.15, transparent: true, opacity: 0.4, sizeAttenuation: true }));
+            const shimmerGroup = new THREE.Group();
+            shimmerGroup.add(shimmer);
+            craftGroup.add(shimmerGroup);
+            craftAnimatables.particles = shimmer;
+
+            document.getElementById('craft-name').textContent = 'PHANTOM LOZENGE';
+        }
+
+        function createCraft_vortex_fighter() {
+            clearCraft();
+
+            // Main body: flattened disc
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(2, 2, 0.3, 32),
+                new THREE.MeshStandardMaterial({ color: 0x0088AA, metalness: 0.9, roughness: 0.1, emissive: 0x003344, emissiveIntensity: 0.2 })
+            );
+            body.castShadow = true;
+            craftGroup.add(body);
+
+            // Swept-back delta fins (two per side)
+            const finMat = new THREE.MeshStandardMaterial({ color: 0x006688, metalness: 0.85, roughness: 0.15 });
+            // Right fins
+            const finR1 = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.05, 0.6), finMat);
+            finR1.position.set(1.5, 0, 0.4);
+            finR1.rotation.y = -0.4;
+            craftGroup.add(finR1);
+            const finR2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.4), finMat);
+            finR2.position.set(1.8, 0, 0.8);
+            finR2.rotation.y = -0.3;
+            craftGroup.add(finR2);
+            // Left fins
+            const finL1 = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.05, 0.6), finMat);
+            finL1.position.set(-1.5, 0, 0.4);
+            finL1.rotation.y = 0.4;
+            craftGroup.add(finL1);
+            const finL2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.4), finMat);
+            finL2.position.set(-1.8, 0, 0.8);
+            finL2.rotation.y = 0.3;
+            craftGroup.add(finL2);
+
+            // Central cockpit dome (half sphere on top)
+            const dome = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+                new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.5, roughness: 0.1, transparent: true, opacity: 0.7 })
+            );
+            dome.position.y = 0.15;
+            craftGroup.add(dome);
+
+            // Engine pods (4 at the rear)
+            const podGeo = new THREE.SphereGeometry(0.2, 12, 12);
+            const podMat = new THREE.MeshStandardMaterial({ color: 0xFF4400, emissive: 0xFF4400, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3 });
+            [[-0.8, -0.1, 1.2], [0.8, -0.1, 1.2], [-0.4, -0.1, 1.4], [0.4, -0.1, 1.4]].forEach(pos => {
+                const pod = new THREE.Mesh(podGeo, podMat);
+                pod.position.set(...pos);
+                craftGroup.add(pod);
+                craftAnimatables.enginePods.push(pod);
+            });
+
+            // Engine lights (2 behind craft)
+            [[-0.6, 0, 1.8], [0.6, 0, 1.8]].forEach(pos => {
+                const light = new THREE.PointLight(0xFF4400, 2, 50);
+                light.position.set(...pos);
+                scene.add(light);
+                craftAnimatables.engineLights.push(light);
+            });
+
+            // Exhaust particles (orange trail)
+            const particleGroup = new THREE.Group();
+            craftGroup.add(particleGroup);
+            const pGeo = new THREE.BufferGeometry();
+            const pCount = 250;
+            const pPositions = new Float32Array(pCount * 3);
+            const pVelocities = new Float32Array(pCount * 3);
+            for (let i = 0; i < pCount; i++) {
+                pPositions[i*3] = (Math.random()-0.5)*1.5;
+                pPositions[i*3+1] = (Math.random()-0.5)*0.3;
+                pPositions[i*3+2] = 1.2 + Math.random()*2;
+                pVelocities[i*3] = (Math.random()-0.5)*0.3;
+                pVelocities[i*3+1] = (Math.random()-0.5)*0.2;
+                pVelocities[i*3+2] = Math.random()*2+1;
+            }
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+            pGeo.userData.velocities = pVelocities;
+            const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xFF4400, size: 0.25, transparent: true, opacity: 0.6, sizeAttenuation: true }));
+            particleGroup.add(particles);
+            craftAnimatables.particles = particles;
+
+            // Equatorial ring (thin, cyan emissive)
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(2.1, 0.04, 16, 48),
+                new THREE.MeshStandardMaterial({ color: 0x00CED1, emissive: 0x00CED1, emissiveIntensity: 0.7, metalness: 0.5, roughness: 0.2 })
+            );
+            ring.rotation.x = Math.PI / 2;
+            craftGroup.add(ring);
+            craftAnimatables.ring = ring;
+
+            document.getElementById('craft-name').textContent = 'VORTEX FIGHTER';
+        }
+
+        function createCraft_titan_carrier() {
+            clearCraft();
+
+            // Main body: large thick disc
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(2.5, 2.5, 0.8, 32),
+                new THREE.MeshStandardMaterial({ color: 0x660000, metalness: 0.7, roughness: 0.7, emissive: 0x220000, emissiveIntensity: 0.1 })
+            );
+            body.castShadow = true;
+            craftGroup.add(body);
+
+            // Armor plating skirt
+            const skirt = new THREE.Mesh(
+                new THREE.CylinderGeometry(2.6, 2.6, 0.4, 32),
+                new THREE.MeshStandardMaterial({ color: 0x440000, metalness: 0.6, roughness: 0.8 })
+            );
+            skirt.position.y = -0.1;
+            skirt.castShadow = true;
+            craftGroup.add(skirt);
+
+            // Central turret dome (cylinder base + sphere cap)
+            const turretBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16),
+                new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.9, roughness: 0.2 })
+            );
+            turretBase.position.y = 0.55;
+            craftGroup.add(turretBase);
+            const turretCap = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+                new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.9, roughness: 0.2 })
+            );
+            turretCap.position.y = 0.7;
+            craftGroup.add(turretCap);
+
+            // Shield generator ring (pulsing crimson)
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(2.8, 0.08, 16, 48),
+                new THREE.MeshStandardMaterial({ color: 0xFF0000, emissive: 0xFF0000, emissiveIntensity: 0.8, metalness: 0.5, roughness: 0.3 })
+            );
+            ring.rotation.x = Math.PI / 2;
+            craftGroup.add(ring);
+            craftAnimatables.ring = ring;
+
+            // 6 thruster pods evenly spaced around bottom edge
+            const podGeo = new THREE.SphereGeometry(0.2, 12, 12);
+            const podMat = new THREE.MeshStandardMaterial({ color: 0xFF2200, emissive: 0xFF2200, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3 });
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const pod = new THREE.Mesh(podGeo, podMat);
+                pod.position.set(Math.cos(angle) * 2.3, -0.5, Math.sin(angle) * 2.3);
+                craftGroup.add(pod);
+                craftAnimatables.enginePods.push(pod);
             }
 
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geometry.userData.velocities = velocities;
-
-            const material = new THREE.PointsMaterial({
-                color: 0xFF6B35,
-                size: 0.3,
-                transparent: true,
-                opacity: 0.6,
-                sizeAttenuation: true
+            // Engine lights (3 underneath, deep red)
+            [[0, -0.8, 0], [1.5, -0.7, 0], [-1.5, -0.7, 0]].forEach(pos => {
+                const light = new THREE.PointLight(0xFF0000, 2, 50);
+                light.position.set(...pos);
+                scene.add(light);
+                craftAnimatables.engineLights.push(light);
             });
 
-            return new THREE.Points(geometry, material);
+            // Downwash particles (red-orange underneath)
+            const particleGroup = new THREE.Group();
+            craftGroup.add(particleGroup);
+            const pGeo = new THREE.BufferGeometry();
+            const pCount = 200;
+            const pPositions = new Float32Array(pCount * 3);
+            const pVelocities = new Float32Array(pCount * 3);
+            for (let i = 0; i < pCount; i++) {
+                pPositions[i*3] = (Math.random()-0.5)*3;
+                pPositions[i*3+1] = -0.5 - Math.random()*1.5;
+                pPositions[i*3+2] = (Math.random()-0.5)*3;
+                pVelocities[i*3] = (Math.random()-0.5)*0.3;
+                pVelocities[i*3+1] = -(Math.random()*1.5+0.5);
+                pVelocities[i*3+2] = (Math.random()-0.5)*0.3;
+            }
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+            pGeo.userData.velocities = pVelocities;
+            const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xFF4400, size: 0.2, transparent: true, opacity: 0.5, sizeAttenuation: true }));
+            particleGroup.add(particles);
+            craftAnimatables.particles = particles;
+
+            document.getElementById('craft-name').textContent = 'TITAN CARRIER';
         }
 
-        const particles = createParticleSystem();
-        particleGroup.add(particles);
+        // Spawn the right craft
+        const craftType = activeMission ? activeMission.craft : 'sentinel_orb';
+        if (craftType === 'manta_ray') createCraft_manta_ray();
+        else if (craftType === 'phantom_lozenge') createCraft_phantom_lozenge();
+        else if (craftType === 'vortex_fighter') createCraft_vortex_fighter();
+        else if (craftType === 'titan_carrier') createCraft_titan_carrier();
+        else createCraft_sentinel_orb();
+
+        // ===== DESERT TERRAIN =====
+        // Simple pseudo-random noise for terrain displacement
+        function noise2D(x, z) {
+            const n = Math.sin(x * 0.01 + z * 0.013) * 43758.5453;
+            const n2 = Math.sin(x * 0.007 - z * 0.009) * 12345.6789;
+            const n3 = Math.sin(x * 0.003 + z * 0.005) * 98765.4321;
+            return (Math.sin(n) * 0.5 + Math.sin(n2) * 0.3 + Math.sin(n3) * 0.2);
+        }
+
+        function createDesertTerrain() {
+            const size = 2000;
+            const segments = 128;
+            const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+            geometry.rotateX(-Math.PI / 2);
+
+            const positions = geometry.attributes.position.array;
+            const colors = new Float32Array(positions.length);
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const x = positions[i];
+                const z = positions[i + 2];
+
+                // Distance from center (for lakebed)
+                const distFromCenter = Math.sqrt(x * x + z * z);
+
+                // Rolling desert hills
+                let height = noise2D(x, z) * 15;
+                height += noise2D(x * 2, z * 2) * 5;
+                height += noise2D(x * 0.3, z * 0.3) * 25;
+
+                // Flatten the center for the dry lakebed
+                const lakebedRadius = 200;
+                if (distFromCenter < lakebedRadius) {
+                    const blend = distFromCenter / lakebedRadius;
+                    const smoothBlend = blend * blend * (3 - 2 * blend); // smoothstep
+                    height = height * smoothBlend + (-10) * (1 - smoothBlend);
+                }
+
+                // Ensure terrain doesn't go below ground plane
+                height = Math.max(height, -10);
+
+                positions[i + 1] = height;
+
+                // Vertex colors: sandy desert with lighter lakebed
+                let r, g, b;
+                if (distFromCenter < lakebedRadius * 0.8) {
+                    // Dry lakebed - pale white/tan (alkali flat)
+                    r = 0.85 + Math.random() * 0.05;
+                    g = 0.82 + Math.random() * 0.05;
+                    b = 0.75 + Math.random() * 0.05;
+                } else if (distFromCenter < lakebedRadius) {
+                    // Transition zone
+                    const t = (distFromCenter - lakebedRadius * 0.8) / (lakebedRadius * 0.2);
+                    r = 0.85 * (1 - t) + 0.76 * t;
+                    g = 0.82 * (1 - t) + 0.58 * t;
+                    b = 0.75 * (1 - t) + 0.42 * t;
+                } else {
+                    // Desert sand/earth - varied tan/brown
+                    const variation = noise2D(x * 3, z * 3) * 0.1;
+                    r = 0.76 + variation;
+                    g = 0.58 + variation * 0.7;
+                    b = 0.42 + variation * 0.5;
+                }
+
+                colors[i] = r;
+                colors[i + 1] = g;
+                colors[i + 2] = b;
+            }
+
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.computeVertexNormals();
+
+            const material = new THREE.MeshStandardMaterial({
+                vertexColors: true,
+                metalness: 0.0,
+                roughness: 0.95,
+                flatShading: false,
+            });
+
+            const terrain = new THREE.Mesh(geometry, material);
+            terrain.receiveShadow = true;
+            scene.add(terrain);
+        }
+        createDesertTerrain();
+
+        // ===== MESAS / BUTTES =====
+        function createMesa(x, z, width, depth, height) {
+            const mesaColor = isNight ? 0x3D2B1F : 0x8B5E3C;
+            const topColor = isNight ? 0x2A1F15 : 0xA0724B;
+
+            // Main body (tapered box)
+            const bodyGeo = new THREE.BoxGeometry(width, height, depth);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: mesaColor, roughness: 0.9, metalness: 0.0 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+
+            // Flat top cap (slightly wider)
+            const capGeo = new THREE.BoxGeometry(width * 1.1, height * 0.1, depth * 1.1);
+            const capMat = new THREE.MeshStandardMaterial({ color: topColor, roughness: 0.85, metalness: 0.0 });
+            const cap = new THREE.Mesh(capGeo, capMat);
+            cap.position.y = height * 0.5;
+
+            const mesa = new THREE.Group();
+            mesa.add(body);
+            mesa.add(cap);
+
+            // Position based on terrain height at that point
+            const terrainH = noise2D(x, z) * 15 + noise2D(x * 0.3, z * 0.3) * 25;
+            mesa.position.set(x, terrainH + height * 0.5, z);
+            mesa.castShadow = true;
+            scene.add(mesa);
+        }
+
+        // Scatter mesas in the distance
+        createMesa(400, 500, 60, 50, 40);
+        createMesa(-350, 600, 80, 40, 55);
+        createMesa(600, -400, 45, 70, 35);
+        createMesa(-500, -300, 70, 60, 50);
+        createMesa(250, -700, 55, 45, 45);
+        createMesa(-700, 200, 90, 50, 60);
+        createMesa(800, 100, 50, 55, 30);
+        createMesa(-200, 800, 65, 40, 42);
+
+        // ===== SKY DOME =====
+        const skyGeometry = new THREE.SphereGeometry(30000, 64, 64);
+        const skyCanvas = document.createElement('canvas');
+        skyCanvas.width = 512;
+        skyCanvas.height = 512;
+        const skyCtx = skyCanvas.getContext('2d');
+
+        if (isNight) {
+            // Night sky - dark blue/black gradient with stars
+            const nightGrad = skyCtx.createLinearGradient(0, 0, 0, 512);
+            nightGrad.addColorStop(0, '#000511');
+            nightGrad.addColorStop(0.4, '#0a1025');
+            nightGrad.addColorStop(0.8, '#1a1a3a');
+            nightGrad.addColorStop(1, '#2a2040');
+            skyCtx.fillStyle = nightGrad;
+            skyCtx.fillRect(0, 0, 512, 512);
+            // Scatter star dots on canvas
+            skyCtx.fillStyle = '#ffffff';
+            for (let i = 0; i < 400; i++) {
+                const sx = Math.random() * 512;
+                const sy = Math.random() * 400; // mostly upper half
+                const sr = Math.random() * 1.5 + 0.3;
+                skyCtx.beginPath();
+                skyCtx.arc(sx, sy, sr, 0, Math.PI * 2);
+                skyCtx.fill();
+            }
+        } else {
+            // Day sky - blue gradient (deeper overhead, lighter at horizon)
+            const dayGrad = skyCtx.createLinearGradient(0, 0, 0, 512);
+            dayGrad.addColorStop(0, '#1a5faa');   // deep blue overhead
+            dayGrad.addColorStop(0.3, '#4a90d9'); // mid blue
+            dayGrad.addColorStop(0.6, '#87CEEB'); // light blue
+            dayGrad.addColorStop(0.85, '#B8DFF0'); // pale horizon
+            dayGrad.addColorStop(1, '#E8D5B0');   // tan/haze at horizon line
+            skyCtx.fillStyle = dayGrad;
+            skyCtx.fillRect(0, 0, 512, 512);
+        }
+
+        const sky = new THREE.Mesh(skyGeometry, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(skyCanvas), side: THREE.BackSide }));
+        scene.add(sky);
+
+        // ===== WAYPOINTS =====
+        const waypointMeshes = {};
+        const waypointReached = {};
+
+        if (activeMission && activeMission.waypoints) {
+            activeMission.waypoints.forEach(wp => {
+                const wpGeo = new THREE.IcosahedronGeometry(2, 1);
+                const wpMat = new THREE.MeshStandardMaterial({
+                    color: wp.color,
+                    emissive: wp.color,
+                    emissiveIntensity: 0.8,
+                    transparent: true,
+                    opacity: 0.6,
+                    wireframe: true,
+                });
+                const wpMesh = new THREE.Mesh(wpGeo, wpMat);
+                wpMesh.position.set(...wp.position);
+                scene.add(wpMesh);
+                waypointMeshes[wp.id] = wpMesh;
+                waypointReached[wp.id] = false;
+            });
+        }
 
         // ===== FLIGHT PHYSICS =====
         const flightState = {
             position: new THREE.Vector3(0, 5, 0),
             velocity: new THREE.Vector3(0, 0, 0),
             acceleration: new THREE.Vector3(0, 0, 0),
-
-            pitch: 0,
-            roll: 0,
-            yaw: 0,
-            pitchRate: 0,
-            rollRate: 0,
-
+            pitch: 0, roll: 0, yaw: 0,
+            pitchRate: 0, rollRate: 0, yawRate: 0,
             throttle: 0,
-            maxSpeed: 150,
-            maxThrust: 80,
-            dragCoefficient: 0.03,
-            gravity: 9.81,
-
-            health: 100,
-            altitude: 5
+            maxSpeed: 150, maxThrust: 25,
+            dragCoefficient: 0.03, gravity: 9.81,
+            health: 100, altitude: 5
         };
 
         const controls = {
-            pitchUp: 0,
-            pitchDown: 0,
-            rollLeft: 0,
-            rollRight: 0,
-            throttleUp: 0,
-            throttleDown: 0
+            pitchUp: 0, pitchDown: 0,
+            rollLeft: 0, rollRight: 0,
+            throttleUp: 0, throttleDown: 0,
+            yawLeft: 0, yawRight: 0,
+            // Analog joystick values (-1 to 1)
+            joyLeftX: 0, joyLeftY: 0,
+            joyRightX: 0, joyRightY: 0,
         };
 
-        // ===== INPUT =====
+        // ===== DUAL JOYSTICK SYSTEM =====
+        const joyCanvas = document.getElementById('joystickCanvas');
+        const joyCtx = joyCanvas.getContext('2d');
+
+        const joystickConfig = {
+            radius: 60,       // outer ring radius
+            knobRadius: 20,   // inner knob radius
+            deadZone: 0.15,   // 15% dead zone
+            leftCenter: { x: 0, y: 0 },
+            rightCenter: { x: 0, y: 0 },
+        };
+
+        // Track active touches per joystick
+        let leftTouchId = null;
+        let rightTouchId = null;
+        let leftKnob = { x: 0, y: 0 };
+        let rightKnob = { x: 0, y: 0 };
+        let joystickDirty = true;
+
+        function resizeJoystickCanvas() {
+            joyCanvas.width = window.innerWidth;
+            joyCanvas.height = window.innerHeight;
+            // Position joysticks in bottom quadrants
+            const bottomY = joyCanvas.height - 140;
+            joystickConfig.leftCenter = { x: joyCanvas.width * 0.25, y: bottomY };
+            joystickConfig.rightCenter = { x: joyCanvas.width * 0.75, y: bottomY };
+            leftKnob = { x: joystickConfig.leftCenter.x, y: joystickConfig.leftCenter.y };
+            rightKnob = { x: joystickConfig.rightCenter.x, y: joystickConfig.rightCenter.y };
+            joystickDirty = true;
+        }
+        resizeJoystickCanvas();
+
+        function drawJoystick(cx, cy, knobX, knobY, label) {
+            const r = joystickConfig.radius;
+            const kr = joystickConfig.knobRadius;
+
+            // Outer ring
+            joyCtx.beginPath();
+            joyCtx.arc(cx, cy, r, 0, Math.PI * 2);
+            joyCtx.strokeStyle = 'rgba(0, 206, 209, 0.3)';
+            joyCtx.lineWidth = 2;
+            joyCtx.stroke();
+
+            // Dead zone indicator
+            joyCtx.beginPath();
+            joyCtx.arc(cx, cy, r * joystickConfig.deadZone, 0, Math.PI * 2);
+            joyCtx.strokeStyle = 'rgba(0, 206, 209, 0.1)';
+            joyCtx.lineWidth = 1;
+            joyCtx.stroke();
+
+            // Inner knob
+            joyCtx.beginPath();
+            joyCtx.arc(knobX, knobY, kr, 0, Math.PI * 2);
+            joyCtx.fillStyle = 'rgba(255, 215, 0, 0.6)';
+            joyCtx.fill();
+            joyCtx.strokeStyle = 'rgba(255, 215, 0, 0.8)';
+            joyCtx.lineWidth = 1.5;
+            joyCtx.stroke();
+
+            // Label
+            joyCtx.font = 'bold 10px monospace';
+            joyCtx.fillStyle = 'rgba(0, 206, 209, 0.5)';
+            joyCtx.textAlign = 'center';
+            joyCtx.fillText(label, cx, cy + r + 18);
+        }
+
+        function renderJoysticks() {
+            if (!joystickDirty) return;
+            joyCtx.clearRect(0, 0, joyCanvas.width, joyCanvas.height);
+            drawJoystick(joystickConfig.leftCenter.x, joystickConfig.leftCenter.y, leftKnob.x, leftKnob.y, 'STEER');
+            drawJoystick(joystickConfig.rightCenter.x, joystickConfig.rightCenter.y, rightKnob.x, rightKnob.y, 'THRUST');
+            joystickDirty = false;
+        }
+
+        function processJoystickInput(centerX, centerY, touchX, touchY) {
+            const r = joystickConfig.radius;
+            let dx = touchX - centerX;
+            let dy = touchY - centerY;
+            let magnitude = Math.sqrt(dx * dx + dy * dy);
+
+            // Clamp to radius
+            if (magnitude > r) {
+                dx = (dx / magnitude) * r;
+                dy = (dy / magnitude) * r;
+                magnitude = r;
+            }
+
+            let normX = dx / r;
+            let normY = dy / r;
+            const normMag = magnitude / r;
+
+            // Dead zone
+            if (normMag < joystickConfig.deadZone) {
+                normX = 0;
+                normY = 0;
+            }
+
+            return { normX, normY, knobX: centerX + dx, knobY: centerY + dy };
+        }
+
+        // Touch event handlers — on document so WebView touch events are captured
+        // regardless of which element the WebView forwards them to
+        document.addEventListener('touchstart', (e) => {
+            // When dialog is showing, let the touch through so click events
+            // fire on the CONTINUE button and overlay
+            if (dialogState.paused) {
+                // Manually trigger click on the touched element for dialog buttons
+                const touch = e.changedTouches[0];
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (target) {
+                    target.click();
+                }
+                return;
+            }
+
+            e.preventDefault();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const halfW = window.innerWidth / 2;
+
+                if (touch.clientX < halfW && leftTouchId === null) {
+                    leftTouchId = touch.identifier;
+                    const result = processJoystickInput(joystickConfig.leftCenter.x, joystickConfig.leftCenter.y, touch.clientX, touch.clientY);
+                    leftKnob = { x: result.knobX, y: result.knobY };
+                    controls.joyLeftX = result.normX;
+                    controls.joyLeftY = result.normY;
+                    joystickDirty = true;
+                } else if (touch.clientX >= halfW && rightTouchId === null) {
+                    rightTouchId = touch.identifier;
+                    const result = processJoystickInput(joystickConfig.rightCenter.x, joystickConfig.rightCenter.y, touch.clientX, touch.clientY);
+                    rightKnob = { x: result.knobX, y: result.knobY };
+                    controls.joyRightX = result.normX;
+                    controls.joyRightY = result.normY;
+                    joystickDirty = true;
+                }
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (dialogState.paused) return;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+
+                if (touch.identifier === leftTouchId) {
+                    const result = processJoystickInput(joystickConfig.leftCenter.x, joystickConfig.leftCenter.y, touch.clientX, touch.clientY);
+                    leftKnob = { x: result.knobX, y: result.knobY };
+                    controls.joyLeftX = result.normX;
+                    controls.joyLeftY = result.normY;
+                    joystickDirty = true;
+                } else if (touch.identifier === rightTouchId) {
+                    const result = processJoystickInput(joystickConfig.rightCenter.x, joystickConfig.rightCenter.y, touch.clientX, touch.clientY);
+                    rightKnob = { x: result.knobX, y: result.knobY };
+                    controls.joyRightX = result.normX;
+                    controls.joyRightY = result.normY;
+                    joystickDirty = true;
+                }
+            }
+        }, { passive: false });
+
+        function releaseJoystick(touchId) {
+            if (touchId === leftTouchId) {
+                leftTouchId = null;
+                leftKnob = { x: joystickConfig.leftCenter.x, y: joystickConfig.leftCenter.y };
+                controls.joyLeftX = 0;
+                controls.joyLeftY = 0;
+                joystickDirty = true;
+            } else if (touchId === rightTouchId) {
+                rightTouchId = null;
+                rightKnob = { x: joystickConfig.rightCenter.x, y: joystickConfig.rightCenter.y };
+                controls.joyRightX = 0;
+                controls.joyRightY = 0;
+                joystickDirty = true;
+            }
+        }
+
+        document.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                releaseJoystick(e.changedTouches[i].identifier);
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchcancel', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                releaseJoystick(e.changedTouches[i].identifier);
+            }
+        }, { passive: false });
+
+        // ===== MOUSE INPUT (for emulator / desktop) =====
+        let mouseDown = false;
+        let mouseSide = null; // 'left' or 'right'
+
+        document.addEventListener('mousedown', (e) => {
+            if (dialogState.paused) return;
+            mouseDown = true;
+            const halfW = window.innerWidth / 2;
+            mouseSide = e.clientX < halfW ? 'left' : 'right';
+            handleMouseJoystick(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!mouseDown || dialogState.paused) return;
+            handleMouseJoystick(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            mouseDown = false;
+            if (mouseSide === 'left') {
+                leftKnob = { x: joystickConfig.leftCenter.x, y: joystickConfig.leftCenter.y };
+                controls.joyLeftX = 0;
+                controls.joyLeftY = 0;
+            } else if (mouseSide === 'right') {
+                rightKnob = { x: joystickConfig.rightCenter.x, y: joystickConfig.rightCenter.y };
+                controls.joyRightX = 0;
+                controls.joyRightY = 0;
+            }
+            mouseSide = null;
+            joystickDirty = true;
+        });
+
+        function handleMouseJoystick(clientX, clientY) {
+            if (mouseSide === 'left') {
+                const result = processJoystickInput(joystickConfig.leftCenter.x, joystickConfig.leftCenter.y, clientX, clientY);
+                leftKnob = { x: result.knobX, y: result.knobY };
+                controls.joyLeftX = result.normX;
+                controls.joyLeftY = result.normY;
+            } else if (mouseSide === 'right') {
+                const result = processJoystickInput(joystickConfig.rightCenter.x, joystickConfig.rightCenter.y, clientX, clientY);
+                rightKnob = { x: result.knobX, y: result.knobY };
+                controls.joyRightX = result.normX;
+                controls.joyRightY = result.normY;
+            }
+            joystickDirty = true;
+        }
+
+        // ===== KEYBOARD INPUT (preserved) =====
         document.addEventListener('keydown', (e) => {
             switch(e.key.toLowerCase()) {
                 case 'w': controls.pitchUp = 1; break;
@@ -386,9 +1332,10 @@
                 case 'd': controls.rollRight = 1; break;
                 case 'q': controls.throttleUp = 1; break;
                 case 'e': controls.throttleDown = 1; break;
+                case 'z': controls.yawLeft = 1; break;
+                case 'x': controls.yawRight = 1; break;
             }
         });
-
         document.addEventListener('keyup', (e) => {
             switch(e.key.toLowerCase()) {
                 case 'w': controls.pitchUp = 0; break;
@@ -397,57 +1344,272 @@
                 case 'd': controls.rollRight = 0; break;
                 case 'q': controls.throttleUp = 0; break;
                 case 'e': controls.throttleDown = 0; break;
+                case 'z': controls.yawLeft = 0; break;
+                case 'x': controls.yawRight = 0; break;
             }
         });
 
-        // Touch controls
-        document.addEventListener('touchstart', () => {
-            controls.throttleUp = 1;
+        // ===== DIALOG SYSTEM =====
+        const dialogState = {
+            paused: false,
+            typewriterInterval: null,
+            typewriterDone: false,
+            fullText: '',
+            radioTimer: null,
+            radioQueue: [],
+            objectiveTimer: null,
+            checkpointQueue: [],   // queue of checkpoint dialogs
+        };
+
+        const firedTriggers = new Set();
+        let missionStartTime = Date.now();
+        let missionElapsed = 0;
+        let hoverTimer = 0;
+        let reachedAlt100 = false;
+
+        function showCheckpoint(character, text) {
+            dialogState.paused = true;
+            dialogState.fullText = text;
+            dialogState.typewriterDone = false;
+
+            const overlay = document.getElementById('checkpoint-overlay');
+            const charEl = document.getElementById('checkpoint-character');
+            const textEl = document.getElementById('checkpoint-text');
+
+            charEl.textContent = character || '';
+            textEl.textContent = '';
+            overlay.classList.add('active');
+
+            // Typewriter effect
+            let charIndex = 0;
+            if (dialogState.typewriterInterval) clearInterval(dialogState.typewriterInterval);
+            dialogState.typewriterInterval = setInterval(() => {
+                if (charIndex < text.length) {
+                    textEl.textContent += text[charIndex];
+                    charIndex++;
+                } else {
+                    clearInterval(dialogState.typewriterInterval);
+                    dialogState.typewriterInterval = null;
+                    dialogState.typewriterDone = true;
+                }
+            }, 30);
+        }
+
+        function advanceCheckpoint() {
+            if (!dialogState.typewriterDone) {
+                // Skip to full text
+                if (dialogState.typewriterInterval) clearInterval(dialogState.typewriterInterval);
+                dialogState.typewriterInterval = null;
+                document.getElementById('checkpoint-text').textContent = dialogState.fullText;
+                dialogState.typewriterDone = true;
+                return;
+            }
+
+            // Close this checkpoint
+            document.getElementById('checkpoint-overlay').classList.remove('active');
+            dialogState.paused = false;
+
+            // If more checkpoints queued, show next after brief delay
+            if (dialogState.checkpointQueue.length > 0) {
+                const next = dialogState.checkpointQueue.shift();
+                setTimeout(() => showCheckpoint(next.character, next.text), 300);
+            }
+        }
+
+        document.getElementById('checkpoint-continue').addEventListener('click', (e) => {
+            e.stopPropagation();
+            advanceCheckpoint();
+        });
+        document.getElementById('checkpoint-overlay').addEventListener('click', (e) => {
+            advanceCheckpoint();
         });
 
-        document.addEventListener('touchend', () => {
-            controls.throttleUp = 0;
-        });
+        function showRadio(character, text) {
+            dialogState.radioQueue.push({ character, text });
+            if (!dialogState.radioTimer) processRadioQueue();
+        }
 
-        // Gyro
-        if (window.DeviceOrientationEvent) {
-            window.addEventListener('deviceorientation', (e) => {
-                const beta = e.beta || 0;
-                const gamma = e.gamma || 0;
-                flightState.pitchRate = beta * Math.PI / 180 * 0.3;
-                flightState.rollRate = gamma * Math.PI / 180 * 0.3;
+        function processRadioQueue() {
+            if (dialogState.radioQueue.length === 0) {
+                dialogState.radioTimer = null;
+                return;
+            }
+            const msg = dialogState.radioQueue.shift();
+            const overlay = document.getElementById('radio-overlay');
+            document.getElementById('radio-character').textContent = msg.character || '';
+            document.getElementById('radio-text').textContent = msg.text;
+            overlay.classList.add('active');
+
+            dialogState.radioTimer = setTimeout(() => {
+                overlay.classList.remove('active');
+                setTimeout(() => processRadioQueue(), 1500);
+            }, 5000);
+        }
+
+        function showObjective(text) {
+            const overlay = document.getElementById('objective-overlay');
+            document.getElementById('objective-text').textContent = text;
+            overlay.classList.add('active');
+            if (dialogState.objectiveTimer) clearTimeout(dialogState.objectiveTimer);
+            dialogState.objectiveTimer = setTimeout(() => {
+                overlay.classList.remove('active');
+            }, 4000);
+        }
+
+        // ===== MISSION TRIGGER SYSTEM =====
+        function checkTriggers() {
+            if (!activeMission) return;
+
+            missionElapsed = (Date.now() - missionStartTime) / 1000;
+
+            activeMission.checkpoints.forEach((cp, idx) => {
+                const key = `${idx}_${cp.trigger}`;
+                if (firedTriggers.has(key)) return;
+
+                let triggered = false;
+
+                if (cp.trigger === 'start') {
+                    triggered = true;
+                } else if (cp.trigger === 'start_after') {
+                    // Fire after all 'start' checkpoints have been processed
+                    triggered = firedTriggers.has(`0_start`);
+                } else if (cp.trigger.startsWith('altitude>')) {
+                    const threshold = parseFloat(cp.trigger.split('>')[1]);
+                    triggered = flightState.altitude > threshold;
+                } else if (cp.trigger.startsWith('altitude<')) {
+                    const threshold = parseFloat(cp.trigger.split('<')[1]);
+                    triggered = flightState.altitude < threshold;
+                } else if (cp.trigger.startsWith('speed>')) {
+                    const threshold = parseFloat(cp.trigger.split('>')[1]);
+                    triggered = flightState.velocity.length() > threshold;
+                } else if (cp.trigger.startsWith('time>')) {
+                    const threshold = parseFloat(cp.trigger.split('>')[1]);
+                    triggered = missionElapsed > threshold;
+                } else if (cp.trigger.startsWith('health<')) {
+                    const threshold = parseFloat(cp.trigger.split('<')[1]);
+                    triggered = flightState.health < threshold;
+                } else if (cp.trigger.startsWith('waypoint_')) {
+                    const wpId = cp.trigger.replace('waypoint_', '');
+                    triggered = waypointReached[wpId] === true;
+                } else if (cp.trigger === 'hover_complete') {
+                    triggered = missionId === 1 && reachedAlt100 && flightState.altitude >= 15 && flightState.altitude <= 25 && flightState.velocity.length() < 5;
+                    if (triggered && hoverTimer < 5) {
+                        triggered = false; // still hovering, not done yet
+                    }
+                }
+
+                if (triggered) {
+                    firedTriggers.add(key);
+
+                    if (cp.type === 'pause') {
+                        if (dialogState.paused) {
+                            dialogState.checkpointQueue.push({ character: cp.character, text: cp.text });
+                        } else {
+                            showCheckpoint(cp.character, cp.text);
+                        }
+                    } else if (cp.type === 'radio') {
+                        showRadio(cp.character, cp.text);
+                    } else if (cp.type === 'objective') {
+                        showObjective(cp.text);
+                    }
+                }
             });
+
+            // Check waypoint proximity
+            if (activeMission.waypoints) {
+                activeMission.waypoints.forEach(wp => {
+                    if (waypointReached[wp.id]) return;
+                    const wpPos = new THREE.Vector3(...wp.position);
+                    const dist = flightState.position.distanceTo(wpPos);
+                    if (dist < 20) {
+                        waypointReached[wp.id] = true;
+                        // Remove waypoint mesh
+                        if (waypointMeshes[wp.id]) {
+                            scene.remove(waypointMeshes[wp.id]);
+                        }
+                    }
+                });
+            }
+
+            // Mission 1: hover tracking
+            if (missionId === 1) {
+                if (flightState.altitude > 100) reachedAlt100 = true;
+                if (reachedAlt100 && flightState.altitude >= 15 && flightState.altitude <= 25 && flightState.velocity.length() < 5) {
+                    hoverTimer += 0.016;
+                } else if (reachedAlt100) {
+                    hoverTimer = Math.max(0, hoverTimer - 0.008);
+                }
+            }
+        }
+
+        // Fire start triggers after a brief delay
+        if (activeMission) {
+            setTimeout(() => checkTriggers(), 500);
         }
 
         // ===== PHYSICS UPDATE =====
         function updatePhysics(deltaTime) {
-            // Attitude control with smooth rates
+            if (dialogState.paused) return;
+
+            // Combine keyboard + joystick inputs
+            // Screen Y is inverted: swiping DOWN = positive normY = push stick forward
+            // Push forward on left stick = pitch down, pull back = pitch up
+            // Push forward on right stick = throttle up, pull back = throttle down
+            const pitchInput = (controls.pitchUp - controls.pitchDown) + (controls.joyLeftY);
+            const rollInput = (controls.rollLeft - controls.rollRight) + (controls.joyLeftX);
+            const yawInput = (controls.yawRight - controls.yawLeft) + (controls.joyRightX);
+            const throttleInput = (controls.throttleUp - controls.throttleDown) + (controls.joyRightY);
+
             const pitchAccel = 0.05;
             const rollAccel = 0.05;
+            const yawAccel = 0.03;
 
-            flightState.pitchRate += (controls.pitchUp - controls.pitchDown) * pitchAccel;
-            flightState.rollRate += (controls.rollLeft - controls.rollRight) * rollAccel;
+            flightState.pitchRate += pitchInput * pitchAccel;
+            flightState.rollRate += rollInput * rollAccel;
+            flightState.yawRate += yawInput * yawAccel;
 
-            flightState.pitchRate *= 0.95; // Damping
-            flightState.rollRate *= 0.95;
+            flightState.pitchRate *= 0.90;
+            flightState.rollRate *= 0.90;
+            flightState.yawRate *= 0.92;
+
+            // Auto-level when no input
+            const isRolling = controls.rollLeft || controls.rollRight || Math.abs(controls.joyLeftX) > joystickConfig.deadZone;
+            const isPitching = controls.pitchUp || controls.pitchDown || Math.abs(controls.joyLeftY) > joystickConfig.deadZone;
+            if (!isRolling) flightState.rollRate -= flightState.roll * 0.02;
+            if (!isPitching) flightState.pitchRate -= flightState.pitch * 0.02;
 
             flightState.pitch += flightState.pitchRate;
             flightState.roll += flightState.rollRate;
+            flightState.yaw += flightState.yawRate;
 
             flightState.pitch = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, flightState.pitch));
             flightState.roll = Math.max(-Math.PI/2, Math.min(Math.PI/2, flightState.roll));
 
-            // Throttle
-            flightState.throttle += (controls.throttleUp - controls.throttleDown) * 0.05;
+            // Throttle from right stick Y (analog) or keyboard
+            // Push stick forward (down on screen) = positive joyRightY = throttle up
+            if (controls.throttleUp) {
+                flightState.throttle += 0.05;
+            } else if (Math.abs(controls.joyRightY) > joystickConfig.deadZone) {
+                flightState.throttle += controls.joyRightY * 0.03;
+            } else {
+                flightState.throttle -= 0.02;
+            }
+            if (controls.throttleDown) flightState.throttle -= 0.05;
             flightState.throttle = Math.max(0, Math.min(1, flightState.throttle));
 
             // Thrust
             const thrustMagnitude = flightState.throttle * flightState.maxThrust;
-            flightState.acceleration.x = 0;
-            flightState.acceleration.y = -flightState.gravity;
-            flightState.acceleration.z = Math.cos(flightState.pitch) * thrustMagnitude / 100;
+            const lift = thrustMagnitude * Math.cos(flightState.pitch) * Math.cos(flightState.roll);
+            const forwardThrust = thrustMagnitude * Math.sin(flightState.pitch);
+            const lateralThrust = thrustMagnitude * Math.sin(flightState.roll);
 
-            // Velocity
+            // Apply yaw to thrust direction
+            const cosYaw = Math.cos(flightState.yaw);
+            const sinYaw = Math.sin(flightState.yaw);
+            flightState.acceleration.x = lateralThrust * cosYaw + forwardThrust * sinYaw;
+            flightState.acceleration.y = -flightState.gravity + lift;
+            flightState.acceleration.z = forwardThrust * cosYaw - lateralThrust * sinYaw;
+
             flightState.velocity.addScaledVector(flightState.acceleration, deltaTime);
 
             // Drag
@@ -456,82 +1618,149 @@
                 const dragForce = speed * speed * flightState.dragCoefficient;
                 flightState.velocity.multiplyScalar(1 - dragForce * deltaTime / speed);
             }
-
-            // Speed limit
             if (speed > flightState.maxSpeed) {
                 flightState.velocity.multiplyScalar(flightState.maxSpeed / speed);
             }
 
-            // Position
             flightState.position.addScaledVector(flightState.velocity, deltaTime);
 
             // Ground collision
             if (flightState.position.y < -9) {
                 flightState.position.y = -9;
+                const impactSpeed = Math.abs(flightState.velocity.y);
                 flightState.velocity.y = Math.max(0, flightState.velocity.y);
-                flightState.health = Math.max(0, flightState.health - 20);
+                if (impactSpeed > 5) {
+                    flightState.health = Math.max(0, flightState.health - impactSpeed * 2);
+                }
             }
 
             flightState.altitude = Math.max(0, flightState.position.y + 9);
         }
 
+        // ===== START MISSION (called from Flutter via JavascriptChannel) =====
+        window.startMission = function(id) {
+            if (id === 0 || !MISSIONS[id]) return; // 0 = free flight
+            if (activeMission && activeMission === MISSIONS[id]) return; // already active
+
+            missionId = id;
+            activeMission = MISSIONS[id];
+
+            // Swap craft model
+            if (activeMission.craft === 'manta_ray') createCraft_manta_ray();
+            else if (activeMission.craft === 'phantom_lozenge') createCraft_phantom_lozenge();
+            else if (activeMission.craft === 'vortex_fighter') createCraft_vortex_fighter();
+            else if (activeMission.craft === 'titan_carrier') createCraft_titan_carrier();
+            else createCraft_sentinel_orb();
+
+            // Apply night mode if needed
+            if (activeMission.nightMode) {
+                scene.background = new THREE.Color(0x0a0a1a);
+                scene.fog = new THREE.FogExp2(0x0a0a1a, 0.0008);
+            }
+
+            // Spawn waypoints
+            if (activeMission.waypoints) {
+                activeMission.waypoints.forEach(wp => {
+                    if (waypointMeshes[wp.id]) return;
+                    const wpGeo = new THREE.IcosahedronGeometry(2, 1);
+                    const wpMat = new THREE.MeshStandardMaterial({
+                        color: wp.color, emissive: wp.color,
+                        emissiveIntensity: 0.8, transparent: true,
+                        opacity: 0.6, wireframe: true,
+                    });
+                    const wpMesh = new THREE.Mesh(wpGeo, wpMat);
+                    wpMesh.position.set(...wp.position);
+                    scene.add(wpMesh);
+                    waypointMeshes[wp.id] = wpMesh;
+                    waypointReached[wp.id] = false;
+                });
+            }
+
+            // Reset mission state and fire start triggers
+            missionStartTime = Date.now();
+            firedTriggers.clear();
+            hoverTimer = 0;
+            reachedAlt100 = false;
+
+            // Update HUD craft name
+            document.getElementById('craft-name').textContent = activeMission.name.toUpperCase();
+
+            // Immediately check triggers (fires 'start' checkpoints)
+            checkTriggers();
+        };
+
         // ===== ANIMATION LOOP =====
         let lastTime = Date.now();
         let rotationAngle = 0;
+        let waypointPulse = 0;
 
         function animate() {
             requestAnimationFrame(animate);
 
             const currentTime = Date.now();
-            const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.016);
+            const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.033);
             lastTime = currentTime;
 
             updatePhysics(deltaTime);
+            checkTriggers();
 
-            // Update craft
+            // Update craft position and rotation
             craftGroup.position.copy(flightState.position);
             craftGroup.rotation.order = 'YXZ';
             craftGroup.rotation.x = flightState.pitch;
             craftGroup.rotation.z = flightState.roll;
             craftGroup.rotation.y = flightState.yaw;
 
-            // Animate ring
-            rotationAngle += 0.01 * flightState.throttle;
-            ring.rotation.z = rotationAngle;
+            // Animate ring (orb and lozenge have rings)
+            if (craftAnimatables.ring) {
+                rotationAngle += 0.02 + flightState.throttle * 0.08;
+                craftAnimatables.ring.rotation.z = rotationAngle;
+            }
 
             // Animate engine pods
-            enginePods.forEach((pod, i) => {
-                pod.scale.set(
-                    0.8 + flightState.throttle * 0.4,
-                    0.8 + flightState.throttle * 0.4,
-                    0.8 + flightState.throttle * 0.4
-                );
+            craftAnimatables.enginePods.forEach(pod => {
+                const s = 0.8 + flightState.throttle * 0.4;
+                pod.scale.set(s, s, s);
             });
 
             // Engine lights intensity
-            engineLights.forEach(light => {
-                light.intensity = 1 + flightState.throttle * 3;
+            craftAnimatables.engineLights.forEach(light => {
+                if (craftAnimatables.underglow) {
+                    // Phantom lozenge: pulse underglow with throttle
+                    light.intensity = 1 + flightState.throttle * 3 + Math.sin(currentTime * 0.003) * 0.5;
+                } else {
+                    light.intensity = 1 + flightState.throttle * 3;
+                }
             });
 
             // Particle update
-            if (particles.geometry.attributes.position) {
-                const positions = particles.geometry.attributes.position.array;
-                const velocities = particles.geometry.userData.velocities;
-
+            if (craftAnimatables.particles && craftAnimatables.particles.geometry.attributes.position) {
+                const positions = craftAnimatables.particles.geometry.attributes.position.array;
+                const velocities = craftAnimatables.particles.geometry.userData.velocities;
                 for (let i = 0; i < positions.length; i += 3) {
                     positions[i] += velocities[i] * flightState.throttle * 0.5;
-                    positions[i + 1] += velocities[i + 1] * flightState.throttle * 0.5;
-                    positions[i + 2] += velocities[i + 2] * flightState.throttle;
-
-                    // Reset if too far
-                    if (positions[i + 2] > 5) {
-                        positions[i] = (Math.random() - 0.5) * 2;
-                        positions[i + 1] = (Math.random() - 0.5) * 2;
-                        positions[i + 2] = 0;
+                    positions[i+1] += velocities[i+1] * flightState.throttle * 0.5;
+                    positions[i+2] += velocities[i+2] * flightState.throttle;
+                    // Reset particles that travel too far
+                    const dist = Math.sqrt(positions[i]*positions[i] + positions[i+1]*positions[i+1] + positions[i+2]*positions[i+2]);
+                    if (dist > 5) {
+                        positions[i] = (Math.random()-0.5)*2;
+                        positions[i+1] = (Math.random()-0.5)*2;
+                        positions[i+2] = 0;
                     }
                 }
-                particles.geometry.attributes.position.needsUpdate = true;
+                craftAnimatables.particles.geometry.attributes.position.needsUpdate = true;
             }
+
+            // Waypoint pulse animation
+            waypointPulse += deltaTime * 2;
+            Object.values(waypointMeshes).forEach(mesh => {
+                if (mesh.parent) {
+                    const s = 1 + Math.sin(waypointPulse) * 0.2;
+                    mesh.scale.set(s, s, s);
+                    mesh.rotation.y += deltaTime * 0.5;
+                }
+            });
 
             // Camera follow
             const cameraDistance = 12;
@@ -546,8 +1775,9 @@
             document.getElementById('speed').textContent = flightState.velocity.length().toFixed(1) + ' m/s';
             document.getElementById('health').textContent = Math.max(0, Math.round(flightState.health)) + '%';
             document.getElementById('throttle').textContent = Math.round(flightState.throttle * 100) + '%';
-            document.getElementById('pitch').textContent = (flightState.pitch * 180 / Math.PI).toFixed(1) + '°';
-            document.getElementById('roll').textContent = (flightState.roll * 180 / Math.PI).toFixed(1) + '°';
+
+            // Render joysticks
+            renderJoysticks();
 
             renderer.render(scene, camera);
         }
@@ -556,9 +1786,23 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            resizeJoystickCanvas();
         });
 
         animate();
+
+        // Signal to Flutter that the page is fully initialized and ready for mission
+        try {
+            if (window.MissionBridge) {
+                MissionBridge.postMessage('ready');
+            }
+        } catch(e) { /* not in Flutter WebView */ }
+
+        // Fallback: if mission was set via URL params and start triggers haven't fired,
+        // fire them now (covers non-Flutter contexts like browser testing)
+        if (activeMission && firedTriggers.size === 0) {
+            setTimeout(() => checkTriggers(), 300);
+        }
     </script>
 </body>
 </html>

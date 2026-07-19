@@ -68,8 +68,81 @@ class GameStateModel extends ChangeNotifier {
     _speed = 0.0;
     _health = 100.0;
     _cameraMode = '3rd_person';
+    _reputationScores = {'patriot': 0, 'grey': 0, 'hacker': 0};
+    _handlerTrust = 5;
+    _narrativeFlags.clear();
+    _completedMissionIds.clear();
+    _unlockedMissions.clear();
+    _lockedMissions.clear();
+    _currentAct = 'grove_lake';
+    _skillLevels.clear();
     notifyListeners();
   }
+
+  // --- Narrative & Consequence State ---
+  Map<String, int> _reputationScores = {'patriot': 0, 'grey': 0, 'hacker': 0};
+  int _handlerTrust = 5;
+  final Set<String> _narrativeFlags = {};
+  final List<String> _completedMissionIds = [];
+  final Set<String> _unlockedMissions = {};
+  final Set<String> _lockedMissions = {};
+  String _currentAct = 'grove_lake';
+  final Map<String, int> _skillLevels = {};
+
+  Map<String, int> get reputationScores => Map.unmodifiable(_reputationScores);
+  int get handlerTrust => _handlerTrust;
+  Set<String> get narrativeFlags => Set.unmodifiable(_narrativeFlags);
+  List<String> get completedMissionIds => List.unmodifiable(_completedMissionIds);
+  Set<String> get unlockedMissions => Set.unmodifiable(_unlockedMissions);
+  Set<String> get lockedMissions => Set.unmodifiable(_lockedMissions);
+  String get currentAct => _currentAct;
+  Map<String, int> get skillLevels => Map.unmodifiable(_skillLevels);
+
+  void addReputation(String path, int delta) {
+    _reputationScores[path] = (_reputationScores[path] ?? 0) + delta;
+    notifyListeners();
+  }
+
+  void adjustHandlerTrust(int delta) {
+    _handlerTrust += delta;
+    notifyListeners();
+  }
+
+  void addNarrativeFlag(String flag) {
+    if (flag.isNotEmpty) {
+      _narrativeFlags.add(flag);
+      notifyListeners();
+    }
+  }
+
+  void completeMission(String missionId) {
+    _completedMissionIds.add(missionId);
+    notifyListeners();
+  }
+
+  void unlockMission(String missionId) {
+    _lockedMissions.remove(missionId);
+    _unlockedMissions.add(missionId);
+    notifyListeners();
+  }
+
+  void lockMission(String missionId) {
+    _unlockedMissions.remove(missionId);
+    _lockedMissions.add(missionId);
+    notifyListeners();
+  }
+
+  void setCurrentAct(String act) {
+    _currentAct = act;
+    notifyListeners();
+  }
+
+  void setSkillLevel(String skill, int level) {
+    _skillLevels[skill] = level;
+    notifyListeners();
+  }
+
+  int getSkillLevel(String skill) => _skillLevels[skill] ?? 0;
 }
 
 // Craft data model
@@ -108,7 +181,7 @@ class CraftModel {
     CraftModel(
       id: 'vortex_fighter',
       name: 'Vortex Fighter',
-      description: 'High-speed sleek UFO with boost capability',
+      description: 'Classified delta platform with MHD propulsion — no moving parts',
       speed: 9,
       agility: 8,
       armor: 3,
@@ -118,7 +191,7 @@ class CraftModel {
     CraftModel(
       id: 'titan_carrier',
       name: 'Titan Carrier',
-      description: 'Heavy armored disc with shield generator',
+      description: '40-foot armored disc with plasma membrane shield generator',
       speed: 3,
       agility: 3,
       armor: 10,

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../models/game_state.dart';
 import '../theme/oblivion_theme.dart';
 import 'craft_selection_screen.dart';
+import 'mission_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -76,6 +75,36 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
+                // Missions Button
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MissionScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 48,
+                      vertical: 16,
+                    ),
+                    backgroundColor: OblivionTheme.secondaryGold,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'MISSIONS',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: OblivionTheme.darkBackground,
+                          fontSize: 16,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Settings Button
                 OutlinedButton(
                   onPressed: () {
@@ -131,10 +160,12 @@ class HomeScreen extends StatelessWidget {
         ),
         content: Text(
           'Oblivion Edge: Flight Simulator\n\n'
-          'Pilot exotic orbs and UFOs across the alien planet Kepler-7b.\n\n'
-          'Select from 5 unique craft with distinct physics-based flight characteristics. '
-          'Master the controls with accelerometer and touch input.\n\n'
-          'Made with Flutter and Godot Engine.',
+          'Test experimental craft over the Nevada desert near Grove Lake — '
+          'a classified flight testing range where advanced aerospace programs '
+          'push the boundaries of physics.\n\n'
+          'Select from unique craft with distinct physics-based flight characteristics. '
+          'Master the controls with dual joystick touch input.\n\n'
+          'Made with Flutter and Three.js.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         actions: [

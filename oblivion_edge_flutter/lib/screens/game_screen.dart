@@ -5,7 +5,9 @@ import '../models/game_state.dart';
 import '../theme/oblivion_theme.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({Key? key}) : super(key: key);
+  final int missionId;
+
+  const GameScreen({Key? key, this.missionId = 0}) : super(key: key);
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -23,6 +25,26 @@ class _GameScreenState extends State<GameScreen> {
     // Initialize WebView controller
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(
+        'MissionBridge',
+        onMessageReceived: (message) {
+          if (message.message == 'ready') {
+            _webViewController.runJavaScript(
+              'window.startMission(${widget.missionId});',
+            );
+          }
+        },
+      )
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (url) {
+            // Fallback: also try injecting mission on page finished
+            _webViewController.runJavaScript(
+              'if(window.startMission) window.startMission(${widget.missionId});',
+            );
+          },
+        ),
+      )
       ..loadFlutterAsset('assets/flight_sim.html');
   }
 

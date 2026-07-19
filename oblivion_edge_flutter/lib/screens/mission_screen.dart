@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/oblivion_theme.dart';
+import '../models/mission_data.dart';
+import '../missions/mission_adapter.dart';
+import 'mission_detail_screen.dart';
+import 'game_screen.dart';
 
 class MissionScreen extends StatefulWidget {
   const MissionScreen({Key? key}) : super(key: key);
@@ -9,90 +13,97 @@ class MissionScreen extends StatefulWidget {
 }
 
 class _MissionScreenState extends State<MissionScreen> {
-  final missions = [
-    {
-      'id': 'mission_1',
-      'name': 'Welcome to Kepler-7b',
-      'difficulty': 'Easy',
-      'description': 'Navigate through asteroid field to colony beacon',
-      'character': 'Command (Starlord)',
-      'briefing':
-          'Welcome to Kepler-7b, pilot. We\'ve got bandits in the asteroid field. Don\'t die—paperwork is a nightmare.',
-      'facts': [
-        'Kepler-7b orbits sun-like star every 4.89 days',
-        '1,500 light-years from Earth',
-        'Super-Earth/mini-Neptune: 1.5x Earth radius',
-        'Surface temp ~427°C'
-      ],
-      'reward': 500,
-    },
-    {
-      'id': 'mission_2',
-      'name': 'Solar Storm Defense',
-      'difficulty': 'Medium',
-      'description': 'Protect satellites during coronal mass ejection',
-      'character': 'Rocket (Sarcastic AI)',
-      'briefing':
-          'The sun\'s throwing a tantrum. Shield the satellites or we\'re all fried. Also, thanks for not crashing last time.',
-      'facts': [
-        'CMEs release 10^24 joules of energy',
-        'That\'s 240 megatons per CME',
-        'Earth\'s magnetosphere protects us',
-        'Kepler-7b might not be so lucky'
-      ],
-      'reward': 750,
-    },
-    {
-      'id': 'mission_3',
-      'name': 'Meteor Shower Protocol',
-      'difficulty': 'Medium',
-      'description': 'Navigate through meteoroid stream safely',
-      'character': 'Gamora (Serious Pilot)',
-      'briefing':
-          'Focus. Precision. We lose the colony, we lose everything. Fly like your life depends on it—because it does.',
-      'facts': [
-        'Meteoroid swarms from asteroid belts',
-        'Impact speed: 11-72 km/s',
-        'Crater formation depends on angle & composition',
-        'Atmospheric friction slows smaller meteoroids'
-      ],
-      'reward': 1000,
-    },
-    {
-      'id': 'mission_4',
-      'name': 'Event Horizon Approach',
-      'difficulty': 'Hard',
-      'description': 'Collect data near black hole (DON\'T DIE!)',
-      'character': 'Drax (Blunt & Honest)',
-      'briefing':
-          'Black hole. Dangerous. Obey laws of physics or die instantly. I am not being poetic, this is literal.',
-      'facts': [
-        'Event horizons: point of no return',
-        'Tidal forces cause spaghettification',
-        'Binary systems with black holes are X-ray sources',
-        'Hawking radiation: tiny holes evaporate'
-      ],
-      'reward': 1500,
-    },
-    {
-      'id': 'mission_5',
-      'name': 'The Oblivion Event',
-      'difficulty': 'Legendary',
-      'description': 'Defeat rogue AI threatening Kepler-7b',
-      'character': 'Yondu (Mysterious Mentor)',
-      'briefing':
-          'You\'ve come far, kid. Now it\'s time to end this. Fly true. Fly like you\'ve never flown before. Make \'em proud up there.',
-      'facts': [
-        'Over 5,000 exoplanets confirmed',
-        'Habitable zones: between too hot and too cold',
-        'Kepler telescope: named after Johannes Kepler',
-        'AI safety: critical for civilization'
-      ],
-      'reward': 3000,
-    },
-  ];
-
+  late final List<Map<String, dynamic>> missions;
   int selectedMission = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    missions = [
+      {
+        'id': 'mission_1',
+        'name': 'Welcome to Grove Lake',
+        'difficulty': 'Easy',
+        'description': 'First flight over the Nevada desert test range',
+        'character': 'Control (Handler)',
+        'briefing':
+            'Welcome to Grove Lake, pilot. Beautiful day for a first flight over the desert. Let\'s see what you\'ve got\u2014don\'t scratch the paint.',
+        'facts': [
+          'Nevada Test and Training Range: 4,531 sq miles of restricted airspace',
+          'Groom Lake dry lakebed: natural runway 7 miles long',
+          'First stealth aircraft tested in Nevada deserts in the 1970s',
+          'Desert thermals can create turbulence up to 15,000 ft AGL'
+        ],
+        'reward': 500,
+      },
+      {
+        'id': 'mission_2',
+        'name': 'Canyon Run',
+        'difficulty': 'Medium',
+        'description': 'Navigate desert canyons at low altitude',
+        'character': 'Control (Handler)',
+        'briefing':
+            'Morning, pilot. Today we push harder. Those canyon waypoints aren\'t optional\u2014precision matters. Sloppy flying gets people killed.',
+        'facts': [
+          'Terrain-following radar allows flight below 200 ft AGL',
+          'Red Flag exercises train pilots in realistic combat scenarios',
+          'Nevada\'s Basin and Range topology creates natural radar shadows',
+          'Low-altitude flight requires constant energy management'
+        ],
+        'reward': 750,
+      },
+      {
+        'id': 'mission_3',
+        'name': 'The Recruitment',
+        'difficulty': 'Medium',
+        'description': 'Night ops \u2014 classified facility reconnaissance',
+        'character': 'Control (Handler)',
+        'briefing':
+            'This is off the books. No flight plan, no radio log. There\'s a beacon north\u2014classified. Fly there and back. Questions later.',
+        'facts': [
+          'Night vision goggles amplify light 30,000-50,000 times',
+          'IR signature management is critical for stealth aircraft',
+          'Restricted airspace (R-4808N) surrounds the most classified test sites',
+          'Radar cross-section of the F-117 was smaller than a marble'
+        ],
+        'reward': 1000,
+      },
+      {
+        'id': 'mission_4',
+        'name': 'Ceiling Test',
+        'difficulty': 'Hard',
+        'description': 'Push experimental craft to maximum altitude',
+        'character': 'Control (Handler)',
+        'briefing':
+            'We need performance data at the edge of the envelope. Take her up\u2014as high as she\'ll go. If the hull starts singing, back off.',
+        'facts': [
+          'SR-71 Blackbird cruised above 85,000 ft at Mach 3.2',
+          'Above 63,000 ft (Armstrong line) blood boils without pressurization',
+          'X-15 rocket plane reached 354,200 ft \u2014 the edge of space',
+          'Plasma heating at hypersonic speeds exceeds 1,000\u00b0F'
+        ],
+        'reward': 1500,
+      },
+      {
+        'id': 'mission_5',
+        'name': 'The Oblivion Protocol',
+        'difficulty': 'Legendary',
+        'description': 'Final classified operation over Grove Lake',
+        'character': 'Control (Handler)',
+        'briefing':
+            'You\'ve come far, kid. This is the one they\'ll never talk about. Fly true. Fly like you\'ve never flown before. Make the program proud.',
+        'facts': [
+          'Over 60 years of classified aircraft tested in Nevada',
+          'Have Blue prototype proved stealth was achievable in 1977',
+          'Lockheed Skunk Works motto: "Quick, Quiet, Quality"',
+          'The best test pilots trust their instruments over their instincts'
+        ],
+        'reward': 3000,
+      },
+      // New MissionData missions via adapter
+      ...MissionData.allMissions.map((m) => MissionAdapter.toLegacyMap(m)),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +318,26 @@ class _MissionScreenState extends State<MissionScreen> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.of(context).pushNamed('/game');
+                            final m = missions[selectedMission];
+                            if (m['isMissionData'] == true) {
+                              final missionData = MissionData.allMissions
+                                  .firstWhere((md) => md.id == m['id']);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      MissionDetailScreen(mission: missionData),
+                                ),
+                              );
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      GameScreen(missionId: selectedMission + 1),
+                                ),
+                              );
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: OblivionTheme.primaryCyan,

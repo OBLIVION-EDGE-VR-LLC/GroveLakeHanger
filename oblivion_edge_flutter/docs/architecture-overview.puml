@@ -1,0 +1,81 @@
+@startuml architecture-overview
+!pragma layout smetana
+skinparam componentStyle rectangle
+
+title Oblivion Edge - Architecture Overview
+
+package "Flutter Layer" {
+  [HomeScreen]
+  [CraftSelectionScreen]
+  [MissionScreen]
+  [MissionDetailScreen]
+  [GameScreen]
+}
+
+package "Engine Layer" {
+  [GameKernel]
+  [EventBus]
+  [Blackboard]
+  [ObjectPool]
+  [ConcurrencyManager]
+}
+
+package "Mission System" {
+  [MissionRunner]
+  [MissionStrategy] <<interface>>
+  [BriefingStrategy]
+  [SlamMappingStrategy]
+  [SigintStrategy]
+  [ChoiceStrategy]
+  [DebriefStrategy]
+  [MissionData]
+  [MissionAdapter]
+}
+
+package "WebView Layer" {
+  [flight_sim.html] <<Three.js>>
+  [Dialog System]
+  [Trigger System]
+  [Joystick Controls]
+}
+
+package "Services" {
+  [ConsequenceTracker]
+  [GameStateModel] <<Provider>>
+}
+
+' Strategy pattern
+[MissionStrategy] <|-- [BriefingStrategy]
+[MissionStrategy] <|-- [SlamMappingStrategy]
+[MissionStrategy] <|-- [SigintStrategy]
+[MissionStrategy] <|-- [ChoiceStrategy]
+[MissionStrategy] <|-- [DebriefStrategy]
+
+' Core relationships
+[GameScreen] --> [flight_sim.html] : embeds WebView
+[MissionRunner] --> [MissionStrategy] : uses Strategy pattern
+[MissionRunner] --> [MissionData] : loads phases from
+[GameKernel] --> [EventBus] : owns
+[GameKernel] --> [Blackboard] : owns
+[GameKernel] --> [ObjectPool] : manages
+[EventBus] --> [MissionRunner] : delivers events
+[EventBus] --> [GameScreen] : delivers events
+
+' Provider shared state
+[GameStateModel] --> [HomeScreen] : Provider
+[GameStateModel] --> [MissionScreen] : Provider
+[GameStateModel] --> [GameScreen] : Provider
+[ConsequenceTracker] --> [GameStateModel] : updates
+
+' WebView internals
+[flight_sim.html] --> [Dialog System]
+[flight_sim.html] --> [Trigger System]
+[flight_sim.html] --> [Joystick Controls]
+
+' Navigation
+[HomeScreen] --> [CraftSelectionScreen]
+[HomeScreen] --> [MissionScreen]
+[MissionScreen] --> [MissionDetailScreen]
+[MissionDetailScreen] --> [GameScreen]
+
+@enduml

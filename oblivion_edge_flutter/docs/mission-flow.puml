@@ -1,0 +1,56 @@
+@startuml mission-flow
+
+title Oblivion Edge - Mission Flow
+
+start
+
+:Player selects mission\nfrom MissionScreen;
+
+:Navigate to GameScreen;
+
+:WebView loads flight_sim.html;
+
+:MissionBridge signals ready;
+
+:startMission(missionId) called;
+
+:MissionRunner.loadMission()\nbuilds strategy queue;
+
+:Craft spawns at origin\nWaypoints placed in scene;
+
+repeat
+  :Game loop tick (dt);
+
+  :currentStrategy.onTick(ctx, dt);
+
+  :checkTriggers each frame;
+
+  if (trigger fired?) then (yes)
+    switch (trigger type)
+      case (pause checkpoint)
+        :Pause flight\nShow checkpoint HUD;
+      case (radio)
+        :Display radio dialog\nNarrativeEvent published;
+      case (objective)
+        :Update objective marker\nMissionEvent published;
+    endswitch
+  else (no)
+  endif
+
+  :Player advances through\nwaypoints / objectives;
+
+  if (strategy complete?) then (yes)
+    :MissionRunner advances\nto next strategy;
+  else (no)
+  endif
+
+repeat while (mission not complete?) is (yes)
+->no;
+
+:DebriefStrategy shows results\nConsequenceTracker applies changes;
+
+:Return to MissionScreen;
+
+stop
+
+@enduml

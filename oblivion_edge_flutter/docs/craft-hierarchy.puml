@@ -1,0 +1,105 @@
+@startuml craft-hierarchy
+
+title Oblivion Edge - Craft Hierarchy & Material Science
+
+class CraftModel {
+  id : String
+  name : String
+  speed : int
+  agility : int
+  armor : int
+  difficulty : String
+}
+
+class SentinelOrb {
+  speed = 6
+  agility = 6
+  armor = 6
+  difficulty = "easy"
+  --
+  <b>Material Science</b>
+  Nickel-titanium shape-memory alloy
+  Self-healing hull deformation
+  Balanced energy distribution
+}
+
+class MantaRay {
+  speed = 7
+  agility = 9
+  armor = 4
+  difficulty = "mission-only"
+  --
+  <b>Material Science</b>
+  Ceramic matrix composite (CMC)
+  High-temp oxidation resistance
+  Lightweight radar-absorbing skin
+}
+
+class PhantomLozenge {
+  speed = 7
+  agility = 9
+  armor = 5
+  difficulty = "mission-only"
+  --
+  <b>Material Science</b>
+  Bismuth-magnesium 26-layer composite
+  Multi-spectral cloaking surface
+  Electromagnetic dampening layers
+}
+
+class VortexFighter {
+  speed = 9
+  agility = 8
+  armor = 3
+  difficulty = "hard"
+  --
+  <b>Material Science</b>
+  Titanium-aluminium vacuum lattice
+  MHD propulsion integration
+  Zero-drag surface topology
+}
+
+class TitanCarrier {
+  speed = 3
+  agility = 3
+  armor = 10
+  difficulty = "easy"
+  --
+  <b>Material Science</b>
+  Ceramic-metallic with plasma membrane
+  Regenerative shield generator
+  40-foot armored disc hull
+}
+
+CraftModel <|-- SentinelOrb
+CraftModel <|-- MantaRay
+CraftModel <|-- PhantomLozenge
+CraftModel <|-- VortexFighter
+CraftModel <|-- TitanCarrier
+
+note right of SentinelOrb
+  Starter craft - balanced stats
+  Available from beginning
+end note
+
+note right of MantaRay
+  ISR specialist
+  Unlocked via missions only
+end note
+
+note right of PhantomLozenge
+  Stealth specialist
+  Unlocked via missions only
+end note
+
+note right of VortexFighter
+  Speed demon - glass cannon
+  Unlocked after Act 1
+end note
+
+note right of TitanCarrier
+  Heavy tank platform
+  Available from beginning
+end note
+
+@enduml

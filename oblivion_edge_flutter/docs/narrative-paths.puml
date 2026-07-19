@@ -1,0 +1,86 @@
+@startuml narrative-paths
+
+title Oblivion Edge - Narrative Campaign Paths
+
+[*] --> GroveLake
+
+state GroveLake {
+  [*] --> Training
+  Training --> FirstMission
+  FirstMission --> BranchPoint
+}
+
+GroveLake --> Area51Branch
+
+state Area51Branch {
+  [*] --> PathSelection
+  PathSelection --> PatriotPath
+  PathSelection --> GreyPath
+  PathSelection --> HackerPath
+}
+
+state PatriotPath {
+  [*] --> Patriot_ISR
+  Patriot_ISR --> Patriot_SIGINT
+  Patriot_SIGINT --> Patriot_DeepRussia
+}
+
+state GreyPath {
+  [*] --> Grey_ISR
+  Grey_ISR --> Grey_SIGINT
+  Grey_SIGINT --> Grey_DeepRussia
+}
+
+state HackerPath {
+  [*] --> Hacker_ISR
+  Hacker_ISR --> Hacker_SIGINT
+  Hacker_SIGINT --> Hacker_DeepRussia
+}
+
+PatriotPath --> LEO
+GreyPath --> LEO
+HackerPath --> LEO
+
+state LEO {
+  [*] --> OrbitalOps
+  OrbitalOps --> LEO_Complete
+}
+
+LEO --> Moon
+
+state Moon {
+  [*] --> LunarApproach
+  LunarApproach --> MoonBase
+  MoonBase --> Moon_Complete
+}
+
+Moon --> UniversalFinale
+
+state UniversalFinale {
+  [*] --> FinalConvergence
+  FinalConvergence --> Ending
+  Ending --> [*]
+}
+
+note right of GroveLake
+  All players start here
+  Tutorial and first missions
+end note
+
+note right of Area51Branch
+  Player choices determine
+  which faction path to follow
+end note
+
+note right of LEO
+  Low Earth Orbit
+  All paths converge
+end note
+
+note right of UniversalFinale
+  Final mission varies based
+  on accumulated reputation
+  and narrative flags
+end note
+
+@enduml
